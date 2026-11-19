@@ -1,0 +1,31 @@
+{
+  "name": "chess",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "engine": "esbuild src/lib/chess.ts --bundle --format=esm --outfile=server/chess.mjs --log-level=warning",
+    "dev": "npm run engine && node server/index.mjs",
+    "build": "npm run engine && tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "start": "NODE_ENV=production node server/index.mjs"
+  },
+  "dependencies": {
+    "compression": "^1.8.2",
+    "express": "^4.21.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@types/ws": "^8.5.13",
+    "@vitejs/plugin-react": "^4.3.4",
+    "esbuild": "^0.25.12",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  }
+}

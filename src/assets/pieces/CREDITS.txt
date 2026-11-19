@@ -1,0 +1,7 @@
+Pieces: "JohnPablok Cburnett Chess set" by JohnPablok (based on the Cburnett
+set), via OpenGameArt.org.
+https://opengameart.org/content/johnpablok-cburnett-chess-set
+License: CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)
+
+The no-shadow SVGs are used; lighting is added in CSS so pieces sit the same
+way on every square.
