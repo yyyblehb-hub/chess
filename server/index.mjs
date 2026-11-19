@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +17,47 @@ const CODE_LENGTH = 5;
 /** Always-on solo table for testing: one seat, you move both colours. */
 const TEST_CODE = 'AAA4';
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/** Sign-in order, oldest first. The first id ever seen carries the GM title. */
+const PLAYERS_FILE = path.join(root, 'server', 'data', 'players.json');
+const PINNED_FIRST = (process.env.GM_ID || '').trim();
+
+function loadSignIns() {
+  const ids = [];
+  if (PINNED_FIRST) ids.push(PINNED_FIRST);
+  try {
+    const parsed = JSON.parse(fs.readFileSync(PLAYERS_FILE, 'utf8'));
+    if (Array.isArray(parsed)) {
+      for (const id of parsed) {
+        if (typeof id === 'string' && id && !ids.includes(id)) ids.push(id);
+      }
+    }
+  } catch {
+    /* first ever boot: nobody has signed in yet */
+  }
+  return ids;
+}
+
+const signIns = loadSignIns();
+
+function saveSignIns() {
+  try {
+    fs.mkdirSync(path.dirname(PLAYERS_FILE), { recursive: true });
+    fs.writeFileSync(PLAYERS_FILE, JSON.stringify(signIns));
+  } catch {
+    /* read-only host: titles last for this process, the order is still right */
+  }
+}
+
+/** Records a sign-in and hands back the title it earned, if any. */
+function titleFor(id) {
+  if (!id) return null;
+  if (!signIns.includes(id)) {
+    signIns.push(id);
+    saveSignIns();
+  }
+  return signIns[0] === id ? 'GM' : null;
+}
 
 /** @type {Map<string, { code: string, mode: string, players: Array<{ id: string, name: string, avatar: string | null, ws: any }> }>} */
 const rooms = new Map();
@@ -75,7 +117,7 @@ function readPlayer(data) {
       ? data.avatar
       : null;
   const id = typeof data?.id === 'string' ? data.id.slice(0, 64) : '';
-  return { id, name: name || 'Player', avatar };
+  return { id, name: name || 'Player', avatar, title: titleFor(id) };
 }
 
 function roomView(room) {
@@ -83,7 +125,7 @@ function roomView(room) {
     code: room.code,
     mode: room.mode,
     capacity: room.solo ? 1 : CAPACITY,
-    players: room.players.map(({ id, name, avatar }) => ({ id, name, avatar })),
+    players: room.players.map(({ id, name, avatar, title }) => ({ id, name, avatar, title: title || null })),
     moves: room.moves,
     turn: room.state.turn,
     solo: room.solo === true,
@@ -179,7 +221,7 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 wss.on('connection', (ws) => {
-  ws.data = { roomCode: null, searching: false, player: { id: '', name: 'Player', avatar: null } };
+  ws.data = { roomCode: null, searching: false, player: { id: '', name: 'Player', avatar: null, title: null } };
   ws.isAlive = true;
   ws.on('pong', () => {
     ws.isAlive = true;
@@ -199,6 +241,12 @@ wss.on('connection', (ws) => {
 
     if (message.t !== 'leave') {
       ws.data.player = readPlayer(message);
+    }
+
+    // menu handshake: claim the sign-in (and the title it earns) without seating a player
+    if (message.t === 'hello') {
+      send(ws, { t: 'title', title: ws.data.player.title });
+      return;
     }
 
     if (message.t === 'create') {
