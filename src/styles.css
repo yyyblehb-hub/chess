@@ -572,14 +572,13 @@ input {
 .piece {
   position: relative;
   z-index: 1;
-  /* every piece SVG already carries its own size and baseline inside a
-     100x100 box, so the image can fill the square and the set stays even */
+  /* the set is drawn on one shared 150x150 canvas with a common baseline, so
+     the images just fill the square — no per-piece sizing, no shadow */
   width: 100%;
   height: 100%;
   object-fit: contain;
   pointer-events: none;
   -webkit-user-drag: none;
-  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.55)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.42));
 }
 
 .target {
