@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: chess
+    runtime: node
+    plan: free
+    # the three binaries (music, board art, menu art) live outside the repo and
+    # are pulled in before the client is built, so the site serves them itself
+    buildCommand: >-
+      npm install --no-audit --no-fund && mkdir -p public/assets &&
+      curl -fsSL -o public/assets/chess.m4a https://files.catbox.moe/0fcoov.m4a &&
+      curl -fsSL -o public/assets/board-wood.jpg https://files.catbox.moe/uudqnj.jpg &&
+      curl -fsSL -o public/assets/chess-bg.jpg https://files.catbox.moe/pversw.jpg &&
+      npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
