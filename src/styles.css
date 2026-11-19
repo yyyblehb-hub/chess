@@ -49,7 +49,7 @@ input {
 /* behind the board: chess.com's page grey, a shade darker, flat, no artwork */
 .app.in-game {
   background-image: none;
-  background-color: #262421;
+  background-color: #211f1c;
 }
 
 /* like play.chess.com, the board runs to the edges of the screen */
@@ -587,17 +587,95 @@ input {
 
 /* the selected square gets no mark of its own: the dots already say which
    piece is picked up, which is how chess.com behaves */
+
+/* the king is threatened. chess.com's own king-check effect: the square flushes
+   #e63946 at 55%, swells to 1.15 and settles, then keeps breathing between 55%
+   and 25% for as long as the check stands; the king pops to 1.1, rocks five
+   times and drops back. Every value below is theirs. */
 .sq.check::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(255, 0, 0, 0.55),
-    rgba(255, 0, 0, 0.22) 55%,
-    rgba(255, 0, 0, 0) 80%
-  );
+  background: #e63946;
+  opacity: 0.55;
   pointer-events: none;
+  animation:
+    king-check-square-grow 50ms linear,
+    king-check-square-shrink 250ms cubic-bezier(0.16, 1, 0.3, 1) 50ms,
+    king-check-square-pulse 2s cubic-bezier(0.33, 1, 0.68, 1) 400ms infinite;
+}
+
+.sq.check .piece {
+  animation:
+    king-check-grow 50ms linear both,
+    king-check-wiggle 200ms linear 50ms 5 both,
+    king-check-shrink 250ms cubic-bezier(0.16, 1, 0.3, 1) 1050ms both;
+}
+
+@keyframes king-check-square-grow {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes king-check-square-shrink {
+  from {
+    transform: scale(1.15);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes king-check-square-pulse {
+  0% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.25;
+  }
+  100% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes king-check-grow {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes king-check-wiggle {
+  0% {
+    transform: scale(1.1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1) rotate(-4deg);
+  }
+  50% {
+    transform: scale(1.1) rotate(0deg);
+  }
+  75% {
+    transform: scale(1.1) rotate(4deg);
+  }
+  100% {
+    transform: scale(1.1) rotate(0deg);
+  }
+}
+
+@keyframes king-check-shrink {
+  from {
+    transform: scale(1.1);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 .piece {
@@ -633,6 +711,12 @@ input {
 
 @media (prefers-reduced-motion: reduce) {
   .piece.slide {
+    animation: none;
+  }
+
+  /* the red stays, the movement stops */
+  .sq.check::before,
+  .sq.check .piece {
     animation: none;
   }
 }
