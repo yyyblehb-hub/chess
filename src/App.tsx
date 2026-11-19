@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Board from './components/Board';
 import { gameStatus, replay, type Color, type Move } from './lib/chess';
 import { useLobby, type Player, type Room, type ServerMessage } from './lib/lobby';
-import { clearProfile, createId, fileToAvatar, loadProfile, saveProfile, type Profile } from './lib/profile';
+import { clearProfile, fileToAvatar, loadId, loadProfile, saveProfile, type Profile } from './lib/profile';
 import { playMoveSound } from './lib/sound';
 
 type Screen = 'identity' | 'menu' | 'join' | 'search' | 'room';
@@ -65,6 +65,12 @@ async function toggleFullscreen() {
   }
 }
 
+/* ---------- title tag ---------- */
+
+function Tag({ title }: { title?: string | null }) {
+  return title ? <span className="tag">{title}</span> : null;
+}
+
 /* ---------- player row ---------- */
 
 function PlayerRow({ player, you }: { player?: Player; you: string }) {
@@ -74,7 +80,14 @@ function PlayerRow({ player, you }: { player?: Player; you: string }) {
         {player ? player.avatar ? <img src={player.avatar} alt="" /> : player.name.slice(0, 1).toUpperCase() : '?'}
       </div>
       <span className="row-name">
-        {player ? (player.id === you ? `${player.name} (you)` : player.name) : 'Empty'}
+        {player ? (
+          <>
+            <Tag title={player.title} />
+            {player.id === you ? `${player.name} (you)` : player.name}
+          </>
+        ) : (
+          'Empty'
+        )}
       </span>
     </div>
   );
@@ -89,7 +102,7 @@ function IdentityScreen({
   initial: Profile | null;
   onSubmit: (profile: Profile) => void;
 }) {
-  const idRef = useRef(initial?.id ?? createId());
+  const idRef = useRef(initial?.id ?? loadId());
   const [name, setName] = useState(initial?.name ?? '');
   const [avatar, setAvatar] = useState<string | null>(initial?.avatar ?? null);
   const [loading, setLoading] = useState(false);
@@ -194,7 +207,10 @@ function MenuScreen({
         <div className="pfp small">
           {profile.avatar ? <img src={profile.avatar} alt="" /> : profile.name.slice(0, 1).toUpperCase()}
         </div>
-        <span className="me-name">{profile.name}</span>
+        <span className="me-name">
+          <Tag title={profile.title} />
+          {profile.name}
+        </span>
         <button className="link" onClick={onEdit}>
           Edit
         </button>
@@ -335,6 +351,8 @@ function GameScreen({
 
   const opponentName = solo ? profile.name : (opponent?.name ?? 'opponent');
   const myName = profile.name;
+  const myTitle = room.players[myIndex]?.title ?? profile.title ?? null;
+  const opponentTitle = solo ? myTitle : (opponent?.title ?? null);
   const opponentAvatar = solo ? profile.avatar : (opponent?.avatar ?? null);
   const opponentFace = opponentAvatar ? (
     <img src={opponentAvatar} alt="" />
@@ -348,7 +366,10 @@ function GameScreen({
       <div className="pcard">
         <div className="pfp mid">{opponentFace}</div>
         <div className="meta">
-          <strong>{opponentName}</strong>
+          <strong>
+            <Tag title={opponentTitle} />
+            {opponentName}
+          </strong>
           <span>{solo ? 'you · black' : 'opponent'}</span>
         </div>
         <button className="chip" onClick={onCopy} aria-label={`Table code ${room.code}, tap to copy`}>
@@ -361,7 +382,10 @@ function GameScreen({
       <div className="pcard">
         <div className="pfp mid">{myFace}</div>
         <div className="meta">
-          <strong>{myName}</strong>
+          <strong>
+            <Tag title={myTitle} />
+            {myName}
+          </strong>
           <span className={over ? 'over' : undefined}>{label}</span>
         </div>
         {(over || solo) && (
@@ -479,6 +503,14 @@ export default function App() {
           setMoves((current) => [...current, message.move]);
           break;
         }
+        case 'title':
+          setProfile((current) => {
+            if (!current || current.title === message.title) return current;
+            const next = { ...current, title: message.title };
+            saveProfile(next);
+            return next;
+          });
+          break;
         case 'notice':
           notify(message.message);
           break;
@@ -498,7 +530,17 @@ export default function App() {
     [notify],
   );
 
-  const { send } = useLobby(handleMessage);
+  const { connected, send } = useLobby(handleMessage);
+
+  // Tell the server who we are as soon as the socket is up. That sign-in is what
+  // earns the titles, and the very first player ever gets GM.
+  const profileRef = useRef<Profile | null>(profile);
+  profileRef.current = profile;
+  useEffect(() => {
+    const current = profileRef.current;
+    if (!connected || !current) return;
+    send({ t: 'hello', id: current.id, name: current.name, avatar: current.avatar });
+  }, [connected, profile?.id, send]);
 
   // Land the move on the frame it is tapped. The server echo only confirms it;
   // if the move turns out to be illegal the server answers with a room
