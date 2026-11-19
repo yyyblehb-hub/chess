@@ -510,6 +510,16 @@ input {
   touch-action: manipulation;
 }
 
+/* while a promotion is pending the board takes taps instead of moves, so a tap
+   anywhere but the strip cancels the pick */
+.promo-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
 /* promotion: a brown strip on the promoting file, four squares tall, one
    square per choice, the queen next to the square the pawn lands on */
 .promo {
