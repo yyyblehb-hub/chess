@@ -3,13 +3,17 @@ services:
     name: chess
     runtime: node
     plan: free
-    # the three binaries (music, board art, menu art) live outside the repo and
-    # are pulled in before the client is built, so the site serves them itself
+    # the three binaries (music, board art, menu art) are ~6.5 MB and live
+    # outside the repo, so the build pulls them in before the client is built
+    # and fails loudly if one is missing; they end up inside dist/, so the
+    # deployed site serves them from its own origin with no third-party requests
     buildCommand: >-
-      npm install --no-audit --no-fund && mkdir -p public/assets &&
-      curl -fsSL -o public/assets/chess.m4a https://files.catbox.moe/0fcoov.m4a &&
-      curl -fsSL -o public/assets/board-wood.jpg https://files.catbox.moe/uudqnj.jpg &&
-      curl -fsSL -o public/assets/chess-bg.jpg https://files.catbox.moe/pversw.jpg &&
+      npm install --no-audit --no-fund &&
+      mkdir -p public/assets &&
+      curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors -o public/assets/chess.m4a https://files.catbox.moe/0fcoov.m4a &&
+      curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors -o public/assets/board-wood.jpg https://files.catbox.moe/uudqnj.jpg &&
+      curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors -o public/assets/chess-bg.jpg https://files.catbox.moe/pversw.jpg &&
+      test -s public/assets/chess.m4a && test -s public/assets/board-wood.jpg && test -s public/assets/chess-bg.jpg &&
       npm run build
     startCommand: npm start
     healthCheckPath: /api/health
