@@ -12,11 +12,10 @@ npm start        # production server on $PORT
 
 Notes
 
-- The board artwork, menu background and menu music live in `public/assets/`
-  and are left out of the repo because of their size. `render.yaml` downloads
-  them during the deploy build, before the client is built.
+- `npm run assets` (run automatically before `dev` and `build`) downloads the
+  pieces, menu music and artwork that are not in the repo because of their size
+  or licence; it only fetches files that are missing.
 - House rules live in `src/lib/chess.ts`, which is bundled to `server/chess.mjs`
   by `npm run engine`, so the server checks every move with the same code the
   board uses.
-- Pieces are the JohnPablok/Cburnett set (CC BY-SA 3.0); see
-  `src/assets/pieces/CREDITS.txt`.
+- Pieces are chess.com's classic set, see `src/assets/pieces/CREDITS.txt`.

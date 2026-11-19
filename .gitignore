@@ -5,3 +5,4 @@ server/chess.mjs
 *.log
 .env
 artifacts/
+src/assets/pieces/*.png

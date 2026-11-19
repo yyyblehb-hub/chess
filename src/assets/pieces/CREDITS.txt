@@ -1,7 +1,6 @@
-Pieces: "JohnPablok Cburnett Chess set" by JohnPablok (based on the Cburnett
-set), via OpenGameArt.org.
-https://opengameart.org/content/johnpablok-cburnett-chess-set
-License: CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)
+Pieces: chess.com "classic" set, from
+https://github.com/GiorgioMegrelli/chess.com-boards-and-pieces (pieces/classic).
 
-The no-shadow SVGs are used; lighting is added in CSS so pieces sit the same
-way on every square.
+Each PNG is 150x150 with its base on the same line, so the whole set shares one
+scale and baseline on the board; they are small enough that Vite inlines them
+into the bundle and the board makes no piece requests.
