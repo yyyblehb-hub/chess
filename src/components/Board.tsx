@@ -11,20 +11,21 @@ import {
   type PieceType,
 } from '../lib/chess';
 
-// JohnPablok/Cburnett set (CC BY-SA 3.0, see src/assets/pieces/CREDITS.txt).
-// Bundled inline so the board needs no image requests at all.
-import wb from '../assets/pieces/wb.svg';
-import wk from '../assets/pieces/wk.svg';
-import wn from '../assets/pieces/wn.svg';
-import wp from '../assets/pieces/wp.svg';
-import wq from '../assets/pieces/wq.svg';
-import wr from '../assets/pieces/wr.svg';
-import bb from '../assets/pieces/bb.svg';
-import bk from '../assets/pieces/bk.svg';
-import bn from '../assets/pieces/bn.svg';
-import bp from '../assets/pieces/bp.svg';
-import bq from '../assets/pieces/bq.svg';
-import br from '../assets/pieces/br.svg';
+// chess.com classic set, see src/assets/pieces/CREDITS.txt. Every file is a
+// 150x150 PNG on the same baseline and each is under Vite's inline limit, so
+// the board still loads with zero piece requests.
+import wb from '../assets/pieces/wb.png';
+import wk from '../assets/pieces/wk.png';
+import wn from '../assets/pieces/wn.png';
+import wp from '../assets/pieces/wp.png';
+import wq from '../assets/pieces/wq.png';
+import wr from '../assets/pieces/wr.png';
+import bb from '../assets/pieces/bb.png';
+import bk from '../assets/pieces/bk.png';
+import bn from '../assets/pieces/bn.png';
+import bp from '../assets/pieces/bp.png';
+import bq from '../assets/pieces/bq.png';
+import br from '../assets/pieces/br.png';
 
 const PIECES: Record<string, string> = { wb, wk, wn, wp, wq, wr, bb, bk, bn, bp, bq, br };
 
