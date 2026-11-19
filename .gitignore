@@ -1,6 +1,7 @@
 node_modules
 dist
 server/chess.mjs
+server/data/
 .DS_Store
 *.log
 .env

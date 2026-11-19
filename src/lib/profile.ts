@@ -1,9 +1,30 @@
 const PROFILE_KEY = 'chess.profile.v1';
+const ID_KEY = 'chess.id.v1';
 
-export type Profile = { id: string; name: string; avatar: string | null };
+export type Profile = { id: string; name: string; avatar: string | null; title?: string | null };
 
 export function createId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+/**
+ * The id outlives the profile, so signing out to rename yourself keeps the
+ * title the server handed out at the first sign-in.
+ */
+export function loadId(): string {
+  try {
+    const stored = window.localStorage.getItem(ID_KEY);
+    if (stored) return stored;
+  } catch {
+    /* storage blocked; a fresh id is fine */
+  }
+  const id = createId();
+  try {
+    window.localStorage.setItem(ID_KEY, id);
+  } catch {
+    /* nothing to do */
+  }
+  return id;
 }
 
 export function loadProfile(): Profile | null {
@@ -13,9 +34,10 @@ export function loadProfile(): Profile | null {
     const parsed = JSON.parse(raw) as Partial<Profile>;
     if (!parsed || typeof parsed.name !== 'string' || !parsed.name.trim()) return null;
     return {
-      id: parsed.id || createId(),
+      id: parsed.id || loadId(),
       name: parsed.name.slice(0, 16),
       avatar: typeof parsed.avatar === 'string' ? parsed.avatar : null,
+      title: typeof parsed.title === 'string' ? parsed.title : null,
     };
   } catch {
     return null;
