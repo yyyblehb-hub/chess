@@ -682,7 +682,7 @@ export default function App() {
   const canGoBack = screen !== 'identity' && screen !== 'menu';
 
   return (
-    <div className="app">
+    <div className={`app${inGame ? ' in-game' : ''}`}>
       <div className="shell">
         <header className="bar">
           {canGoBack ? (
