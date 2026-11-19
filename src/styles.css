@@ -648,16 +648,16 @@ input {
   pointer-events: none;
 }
 
-/* a capture is the same ink drawn as a ring hugging the square, 6% thick;
-   the gradient keeps it exactly proportional at any board size */
+/* a capture is the same ink drawn as a ring hugging the square; the gradient
+   keeps it exactly proportional at any board size */
 .target.capture {
   width: 100%;
   height: 100%;
   border-radius: 0;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(0, 0, 0, 0) 43.5%,
-    rgba(0, 0, 0, 0.14) 44% 50%,
+    rgba(0, 0, 0, 0) 41%,
+    rgba(0, 0, 0, 0.14) 41.5% 50%,
     rgba(0, 0, 0, 0) 50%
   );
 }
