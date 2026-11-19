@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   gameStatus,
   inCheck,
@@ -31,6 +31,12 @@ const PIECES: Record<string, string> = { wb, wk, wn, wp, wq, wr, bb, bk, bn, bp,
 
 const pieceImage = (color: Color, type: PieceType) => PIECES[`${color}${type}`];
 
+// chess.com's "Fast" move animation. Their slider runs slow/medium(default)/fast
+// and fast is the quick swipe a phone player expects.
+const SLIDE_MS = 100;
+
+type Slide = { from: number; to: number; color: Color; type: PieceType };
+
 export default function Board({
   state,
   myColor,
@@ -54,6 +60,40 @@ export default function Board({
   const targets = useMemo(() => (selected === null ? [] : legalMoves(state, selected)), [state, selected]);
   const status = useMemo(() => gameStatus(state), [state]);
   const checkedKing = inCheck(state, state.turn) ? kingSquare(state, state.turn) : -1;
+
+  // ply count of the position; each move changes it, so it doubles as "a move
+  // just landed" without App having to pass anything down
+  const ply = (state.fullmove - 1) * 2 + (state.turn === 'w' ? 0 : 1);
+  const [slide, setSlide] = useState<{ id: number; pieces: Slide[] } | null>(null);
+  const seenPly = useRef(ply);
+
+  useEffect(() => {
+    if (seenPly.current === ply) return;
+    seenPly.current = ply;
+    const last = state.last;
+    if (!last) return;
+
+    const moved = state.board[last.to];
+    if (!moved) return;
+
+    const pieces: Slide[] = [{ from: last.from, to: last.to, color: moved.color, type: moved.type }];
+    // the rook slides too when the king castles; otherwise it would teleport
+    if (moved.type === 'k' && Math.abs((last.to & 7) - (last.from & 7)) === 2) {
+      const kingside = last.to > last.from;
+      pieces.push({
+        from: kingside ? last.to + 1 : last.to - 2,
+        to: kingside ? last.to - 1 : last.to + 1,
+        color: moved.color,
+        type: 'r',
+      });
+    }
+
+    setSlide({ id: Date.now(), pieces });
+    const timer = setTimeout(() => setSlide(null), SLIDE_MS);
+    return () => clearTimeout(timer);
+  }, [ply, state]);
+
+  const sliding = new Set(slide?.pieces.map((piece) => piece.to) ?? []);
 
   const choose = (square: number) => {
     if (!myTurn) {
@@ -107,7 +147,7 @@ export default function Board({
           }}
           aria-label={`${'abcdefgh'[square & 7]}${8 - (square >> 3)}${piece ? ` ${piece.color === 'w' ? 'white' : 'black'} ${piece.type}` : ''}`}
         >
-          {piece && (
+          {piece && !sliding.has(square) && (
             <img
               className="piece"
               src={pieceImage(piece.color, piece.type)}
@@ -132,6 +172,32 @@ export default function Board({
         aria-label="Chess board"
       >
         {squares}
+
+        {slide?.pieces.map((piece) => {
+          const toColumn = flip ? 7 - (piece.to & 7) : piece.to & 7;
+          const toRow = flip ? 7 - (piece.to >> 3) : piece.to >> 3;
+          const fromColumn = flip ? 7 - (piece.from & 7) : piece.from & 7;
+          const fromRow = flip ? 7 - (piece.from >> 3) : piece.from >> 3;
+
+          return (
+            <img
+              key={`${slide.id}-${piece.from}-${piece.to}`}
+              className="piece slide"
+              src={pieceImage(piece.color, piece.type)}
+              alt=""
+              draggable={false}
+              aria-hidden="true"
+              style={
+                {
+                  left: `${toColumn * 12.5}%`,
+                  top: `${toRow * 12.5}%`,
+                  '--dx': `${(fromColumn - toColumn) * 100}%`,
+                  '--dy': `${(fromRow - toRow) * 100}%`,
+                } as CSSProperties
+              }
+            />
+          );
+        })}
       </div>
 
       {promotion && (
