@@ -163,6 +163,13 @@ export default function Board({
   }
 
   const promotionColour = promotion ? (state.board[promotion.from]?.color ?? myColor) : myColor;
+  // the picker sits on the promoting file, one square per choice, and grows
+  // away from the board edge — the shape chess.com and lichess both use
+  const promoColumn = promotion ? (flip ? 7 - (promotion.to & 7) : promotion.to & 7) : 0;
+  const promoRow = promotion ? (flip ? 7 - (promotion.to >> 3) : promotion.to >> 3) : 0;
+  const promoDown = promoRow <= 3;
+  const promoStart = promoDown ? promoRow : promoRow - 3;
+  const promoChoices: PieceType[] = promoDown ? ['q', 'r', 'b', 'n'] : ['n', 'b', 'r', 'q'];
 
   return (
     <div className="board-wrap">
@@ -201,8 +208,17 @@ export default function Board({
       </div>
 
       {promotion && (
-        <div className="promo" role="dialog" aria-label="Choose a piece">
-          {(['q', 'r', 'b', 'n'] as PieceType[]).map((type) => (
+        <div
+          className="promo"
+          role="dialog"
+          aria-label="Choose a piece"
+          style={{
+            left: `${promoColumn * 12.5}%`,
+            top: `${promoStart * 12.5}%`,
+            height: '50%',
+          }}
+        >
+          {promoChoices.map((type) => (
             <button
               key={type}
               type="button"
