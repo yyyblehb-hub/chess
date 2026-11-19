@@ -87,7 +87,6 @@ export default function Board({
       const isTarget = targets.includes(square);
       const classes = ['sq', dark ? 'dark' : 'light'];
       if (state.last && (state.last.from === square || state.last.to === square)) classes.push('last');
-      if (selected === square) classes.push('sel');
       if (checkedKing === square) classes.push('check');
 
       squares.push(
