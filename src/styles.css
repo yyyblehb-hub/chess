@@ -287,6 +287,27 @@ input {
   white-space: nowrap;
 }
 
+/* small title badge that rides along with a name */
+.tag {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 1px 4px;
+  border: 1px solid rgba(241, 208, 133, 0.38);
+  border-radius: 3px;
+  background: rgba(241, 208, 133, 0.14);
+  color: #f1d085;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  vertical-align: 1px;
+}
+
+.pcard .meta strong .tag {
+  color: #f1d085;
+  font-size: 9px;
+}
+
 .dev-resign {
   align-self: flex-start;
   padding: 0;
