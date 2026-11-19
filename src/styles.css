@@ -46,6 +46,12 @@ input {
   background-repeat: no-repeat;
 }
 
+/* behind the board: flat dark grey, so the wood board and pieces stand out */
+.app.in-game {
+  background-image: none;
+  background-color: #262626;
+}
+
 .shell {
   position: relative;
   display: flex;
