@@ -208,30 +208,42 @@ export default function Board({
       </div>
 
       {promotion && (
-        <div
-          className="promo"
-          role="dialog"
-          aria-label="Choose a piece"
-          style={{
-            left: `${promoColumn * 12.5}%`,
-            top: `${promoStart * 12.5}%`,
-            height: '50%',
-          }}
-        >
-          {promoChoices.map((type) => (
-            <button
-              key={type}
-              type="button"
-              className="promo-btn"
-              onClick={() => {
-                onMove({ from: promotion.from, to: promotion.to, promotion: type });
-                setPromotion(null);
-              }}
-            >
-              <img src={pieceImage(promotionColour, type)} alt={type} />
-            </button>
-          ))}
-        </div>
+        <>
+          {/* any tap that is not on a choice puts the pawn back; the flag stops
+              the click that follows from reaching the square underneath */}
+          <div
+            className="promo-scrim"
+            onPointerDown={() => {
+              handledByPointer.current = true;
+              setPromotion(null);
+            }}
+            aria-hidden="true"
+          />
+          <div
+            className="promo"
+            role="dialog"
+            aria-label="Choose a piece"
+            style={{
+              left: `${promoColumn * 12.5}%`,
+              top: `${promoStart * 12.5}%`,
+              height: '50%',
+            }}
+          >
+            {promoChoices.map((type) => (
+              <button
+                key={type}
+                type="button"
+                className="promo-btn"
+                onClick={() => {
+                  onMove({ from: promotion.from, to: promotion.to, promotion: type });
+                  setPromotion(null);
+                }}
+              >
+                <img src={pieceImage(promotionColour, type)} alt={type} />
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
