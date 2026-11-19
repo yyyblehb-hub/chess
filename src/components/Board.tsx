@@ -51,6 +51,11 @@ export default function Board({
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [promotion, setPromotion] = useState<{ from: number; to: number } | null>(null);
+  // The tap that opens the picker also produces a click, and that click lands on
+  // the strip that just appeared under the finger — straight on the queen. So the
+  // choices stay inert for a beat and only answer a fresh press.
+  const [promoArmed, setPromoArmed] = useState(false);
+  const armTimer = useRef<number | null>(null);
   // a tap is handled on pointerdown so a swallowed click (fullscreen, scroll)
   // cannot eat the move; the click that follows is then ignored
   const handledByPointer = useRef(false);
@@ -95,6 +100,20 @@ export default function Board({
 
   const sliding = new Set(slide?.pieces.map((piece) => piece.to) ?? []);
 
+  const openPromotion = (from: number, to: number) => {
+    setPromotion({ from, to });
+    setPromoArmed(false);
+    if (armTimer.current !== null) window.clearTimeout(armTimer.current);
+    armTimer.current = window.setTimeout(() => setPromoArmed(true), 150);
+  };
+
+  useEffect(
+    () => () => {
+      if (armTimer.current !== null) window.clearTimeout(armTimer.current);
+    },
+    [],
+  );
+
   const choose = (square: number) => {
     if (!myTurn) {
       setSelected(null);
@@ -105,7 +124,7 @@ export default function Board({
       const piece = state.board[selected];
       const promotionRank = piece?.color === 'w' ? 0 : 7;
       if (piece?.type === 'p' && rankOf(square) === promotionRank) {
-        setPromotion({ from: selected, to: square });
+        openPromotion(selected, square);
         setSelected(null);
         return;
       }
@@ -234,7 +253,8 @@ export default function Board({
                 key={type}
                 type="button"
                 className="promo-btn"
-                onClick={() => {
+                disabled={!promoArmed}
+                onPointerDown={() => {
                   onMove({ from: promotion.from, to: promotion.to, promotion: type });
                   setPromotion(null);
                 }}
