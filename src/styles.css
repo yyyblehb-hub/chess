@@ -52,6 +52,12 @@ input {
   background-color: #302e2b;
 }
 
+/* like play.chess.com, the board runs to the edges of the screen */
+.app.in-game .shell {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
 .shell {
   position: relative;
   display: flex;
@@ -486,6 +492,7 @@ input {
 
 /* the board is the artwork itself: no tint, no gradient, no shadow */
 .board {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   grid-template-rows: repeat(8, 1fr);
@@ -592,6 +599,31 @@ input {
   object-fit: contain;
   pointer-events: none;
   -webkit-user-drag: none;
+}
+
+/* the move in flight: one square wide, parked on its destination and swept
+   back to where it came from, so it reads as a slide rather than a jump */
+.piece.slide {
+  position: absolute;
+  z-index: 2;
+  width: 12.5%;
+  height: 12.5%;
+  animation: piece-slide 100ms ease-out;
+}
+
+@keyframes piece-slide {
+  from {
+    transform: translate(var(--dx), var(--dy));
+  }
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piece.slide {
+    animation: none;
+  }
 }
 
 /* chess.com's legal-move marker: a dot 30% of the square, black at 14% */
