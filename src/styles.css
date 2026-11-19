@@ -46,10 +46,10 @@ input {
   background-repeat: no-repeat;
 }
 
-/* behind the board: flat dark grey, so the wood board and pieces stand out */
+/* behind the board: chess.com's own page colour (#302E2B), flat, no artwork */
 .app.in-game {
   background-image: none;
-  background-color: #262626;
+  background-color: #302e2b;
 }
 
 .shell {
@@ -567,12 +567,19 @@ input {
   pointer-events: none;
 }
 
-.sq.sel {
-  box-shadow: inset 0 0 0 3px rgba(255, 243, 208, 0.95);
-}
-
-.sq.check {
-  box-shadow: inset 0 0 0 3px rgba(198, 74, 58, 0.9);
+/* the selected square gets no mark of its own: the dots already say which
+   piece is picked up, which is how chess.com behaves */
+.sq.check::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 0, 0, 0.55),
+    rgba(255, 0, 0, 0.22) 55%,
+    rgba(255, 0, 0, 0) 80%
+  );
+  pointer-events: none;
 }
 
 .piece {
@@ -587,22 +594,29 @@ input {
   -webkit-user-drag: none;
 }
 
+/* chess.com's legal-move marker: a dot 30% of the square, black at 14% */
 .target {
   position: absolute;
   z-index: 1;
-  width: 24%;
-  height: 24%;
+  width: 30%;
+  height: 30%;
   border-radius: 50%;
-  background: rgba(28, 18, 10, 0.3);
+  background: rgba(0, 0, 0, 0.14);
   pointer-events: none;
 }
 
+/* a capture is the same ink drawn as a ring hugging the square, 6% thick;
+   the gradient keeps it exactly proportional at any board size */
 .target.capture {
   width: 100%;
   height: 100%;
   border-radius: 0;
-  background: none;
-  box-shadow: inset 0 0 0 4px rgba(28, 18, 10, 0.32);
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(0, 0, 0, 0) 43.5%,
+    rgba(0, 0, 0, 0.14) 44% 50%,
+    rgba(0, 0, 0, 0) 50%
+  );
 }
 
 /* searching */
