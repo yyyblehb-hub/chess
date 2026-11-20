@@ -25,7 +25,7 @@ export type ServerMessage =
   | { t: 'searching' }
   | { t: 'left' }
   | { t: 'title'; title: string | null }
-  | { t: 'chat'; from: string; text: string }
+  | { t: 'chat'; id: string; from: string; text: string; at: number }
   | { t: 'notice'; message: string }
   | { t: 'error'; message: string };
 
