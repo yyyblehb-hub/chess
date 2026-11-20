@@ -46,10 +46,10 @@ input {
   background-repeat: no-repeat;
 }
 
-/* behind the board: chess.com's page grey, a shade darker, flat, no artwork */
+/* behind the board: near black, flat, no artwork */
 .app.in-game {
   background-image: none;
-  background-color: #211f1c;
+  background-color: #12110f;
 }
 
 /* like play.chess.com, the board runs to the edges of the screen */
@@ -287,25 +287,15 @@ input {
   white-space: nowrap;
 }
 
-/* small title badge that rides along with a name */
+/* emoji-size picture that rides along with a name */
 .tag {
-  display: inline-block;
+  width: 1.35em;
+  height: 1.35em;
   margin-right: 5px;
-  padding: 1px 4px;
-  border: 1px solid rgba(241, 208, 133, 0.38);
-  border-radius: 3px;
-  background: rgba(241, 208, 133, 0.14);
-  color: #f1d085;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1.25;
-  vertical-align: 1px;
-}
-
-.pcard .meta strong .tag {
-  color: #f1d085;
-  font-size: 9px;
+  border-radius: 4px;
+  object-fit: cover;
+  vertical-align: -0.22em;
+  background: rgba(239, 228, 208, 0.14);
 }
 
 .dev-resign {
@@ -428,6 +418,68 @@ input {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* in-game chat */
+
+.chat {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 52%;
+  padding: 10px 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  border-top: 1px solid var(--line);
+  background: #131210;
+}
+
+.chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 44px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.chat-line {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.chat-line strong {
+  margin-right: 5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.chat-form {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.chat-form .field {
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.chat-form .btn {
+  min-height: 0;
+  padding: 0 14px;
+  font-size: 13px;
 }
 
 /* board */
