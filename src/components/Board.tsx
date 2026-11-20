@@ -42,7 +42,10 @@ export default function Board({
   myColor,
   solo = false,
   locked = false,
+  targeting = false,
+  hit = null,
   onMove,
+  onShoot,
 }: {
   state: GameState;
   myColor: Color;
@@ -50,7 +53,12 @@ export default function Board({
   solo?: boolean;
   /** The game is over: the board is only there to look at. */
   locked?: boolean;
+  /** The admin sniper is aiming: pieces are the targets instead of moves. */
+  targeting?: boolean;
+  /** the square that was just shot, drawn as an impact ring */
+  hit?: number | null;
   onMove: (move: Move) => void;
+  onShoot?: (square: number) => void;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [promotion, setPromotion] = useState<{ from: number; to: number } | null>(null);
@@ -118,6 +126,10 @@ export default function Board({
   );
 
   const choose = (square: number) => {
+    if (targeting) {
+      if (state.board[square] && onShoot) onShoot(square);
+      return;
+    }
     if (locked) return;
     if (!myTurn) {
       setSelected(null);
@@ -151,6 +163,7 @@ export default function Board({
       const classes = ['sq', dark ? 'dark' : 'light'];
       if (state.last && (state.last.from === square || state.last.to === square)) classes.push('last');
       if (checkedKing === square) classes.push('check');
+      if (targeting && piece) classes.push('arm');
 
       squares.push(
         <button
@@ -180,6 +193,7 @@ export default function Board({
             />
           )}
           {isTarget && <span className={piece ? 'target capture' : 'target'} aria-hidden="true" />}
+          {hit === square && <span className="sniper-ink" aria-hidden="true" />}
         </button>,
       );
     }
@@ -197,7 +211,7 @@ export default function Board({
   return (
     <div className="board-wrap">
       <div
-        className={`board${status === 'checkmate' || status === 'stalemate' ? ' over' : ''}`}
+        className={`board${status === 'checkmate' || status === 'stalemate' ? ' over' : ''}${targeting ? ' targeting' : ''}`}
         role="grid"
         aria-label="Chess board"
       >
