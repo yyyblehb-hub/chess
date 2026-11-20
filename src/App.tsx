@@ -176,9 +176,7 @@ function IdentityScreen({
   };
 
   return (
-    <div className="screen">
-      <h1 className="title">Chess</h1>
-
+    <div className="screen identity">
       <div className="setup">
         <button
           type="button"
