@@ -93,6 +93,7 @@ function roomView(room) {
     moves: room.moves,
     shots: room.shots ?? [],
     magic: room.magic ?? [],
+    scare: room.scare ?? null,
     turn: room.state.turn,
     solo: room.solo === true,
   };
@@ -342,8 +343,8 @@ wss.on('connection', (ws, _req, account, ip) => {
       return;
     }
 
-    if (message.t === 'spawn' || message.t === 'magic') {
-      powerMessage(ws, message, rooms, send);
+    if (['spawn', 'magic', 'turn', 'scare', 'omega'].includes(message.t)) {
+      powerMessage(ws, message, rooms, send, pushRoom);
       return;
     }
 

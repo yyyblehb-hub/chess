@@ -20,8 +20,10 @@ export type Room = {
   turn: Color;
   /** squares emptied by the admin sniper, laid over the move list */
   shots?: number[];
-  /** the admin's special pieces: spawns, moves and removals, in order */
+  /** the admin's special pieces and events: spawns, moves, flees, the merge */
   magic?: MagicEvent[];
+  /** the last jumpscare the admin fired, so both screens show it once */
+  scare?: { face: number; by: string; at: number } | null;
   solo?: boolean;
 };
 
