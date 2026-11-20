@@ -172,6 +172,17 @@ input {
   margin-top: auto;
 }
 
+/* settings grew past a phone screen, so it scrolls from the top instead */
+.screen.settings {
+  justify-content: flex-start;
+  overflow-y: auto;
+  padding-bottom: 16px;
+}
+
+.screen.settings .push {
+  margin-top: 0;
+}
+
 .label {
   font-size: 11px;
   font-weight: 600;
@@ -513,6 +524,43 @@ input {
   background-color: #6b4a2f;
   background-image: repeating-conic-gradient(#6b4a2f 0% 25%, #8a6240 0% 50%);
   background-size: 20px 20px;
+}
+
+/* music picker */
+
+.tracks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.track {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.track.sel {
+  border-color: var(--accent);
+  background: rgba(237, 220, 192, 0.12);
+}
+
+.track-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.track-by {
+  font-size: 11px;
+  color: var(--muted);
 }
 
 /* in-game chat */
