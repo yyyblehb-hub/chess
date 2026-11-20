@@ -4,6 +4,30 @@ const THEME_KEY = 'chess.theme.v1';
 
 export type ThemeId = 'wood' | 'black' | 'gray' | 'pink' | 'blue' | 'checker';
 
+export type TrackId = 'beta' | 'diversion' | 'queen' | 'hopes';
+
+const TRACK_KEY = 'chess.track.v1';
+const TRACK_IDS: TrackId[] = ['beta', 'diversion', 'queen', 'hopes'];
+
+/** The chosen song is a device preference and follows a player between profiles. */
+export function loadTrack(): TrackId {
+  try {
+    const stored = window.localStorage.getItem(TRACK_KEY);
+    if (stored && TRACK_IDS.includes(stored as TrackId)) return stored as TrackId;
+  } catch {
+    /* storage blocked; the original menu song plays */
+  }
+  return 'beta';
+}
+
+export function saveTrack(track: TrackId) {
+  try {
+    window.localStorage.setItem(TRACK_KEY, track);
+  } catch {
+    /* storage can be blocked; the song still plays this session */
+  }
+}
+
 const THEME_IDS: ThemeId[] = ['wood', 'black', 'gray', 'pink', 'blue', 'checker'];
 
 /** The chosen design is a device preference, so it outlives signing out. */

@@ -1,6 +1,6 @@
 // Downloads the assets that are too big (or not ours) to keep in git: the twelve
-// piece images, the menu music, the board surface and the menu background.
-// Only missing files are fetched, so a local rebuild does not re-download 6.5 MB.
+// piece images, the menu songs, the board surface and the menu background.
+// Only missing files are fetched, so a local rebuild does not re-download them.
 import { createWriteStream, existsSync, mkdirSync } from 'node:fs';
 import { stat, unlink } from 'node:fs/promises';
 import { dirname } from 'node:path';
@@ -14,6 +14,9 @@ const SET = ['wb', 'wk', 'wn', 'wp', 'wq', 'wr', 'bb', 'bk', 'bn', 'bp', 'bq', '
 const files = [
   ...SET.map((piece) => [`src/assets/pieces/${piece}.png`, `${PIECES}/${piece}.png`]),
   ['public/assets/chess.m4a', 'https://files.catbox.moe/0fcoov.m4a'],
+  ['public/assets/simple-diversion.mp3', 'https://files.catbox.moe/e2k166.mp3'],
+  ['public/assets/queen.mp3', 'https://files.catbox.moe/jojrjv.mp3'],
+  ['public/assets/field-of-hopes.mp3', 'https://files.catbox.moe/og82ow.mp3'],
   ['public/assets/board-wood.jpg', 'https://files.catbox.moe/uudqnj.jpg'],
   ['public/assets/chess-bg.jpg', 'https://files.catbox.moe/pversw.jpg'],
 ];

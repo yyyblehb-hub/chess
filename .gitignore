@@ -7,3 +7,4 @@ server/data/
 .env
 artifacts/
 src/assets/pieces/*.png
+public/assets/
