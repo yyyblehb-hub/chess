@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import { applyMove, gameResult, initialState } from './chess.mjs';
 import { accountCount, authRouter, clientIp, guard, readAppearance, userForToken } from './auth.mjs';
 import { sniperMessage } from './sniper.mjs';
+import { magicAfterMove, powerMessage } from './powers.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -32,7 +33,6 @@ app.use(express.json({ limit: '32kb' }));
 app.use('/api/auth', authRouter);
 const server = http.createServer(app);
 
-// a plain uptime ping: it deliberately does not list table codes any more
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, tables: Math.max(0, rooms.size - 1), queued: queue.length, accounts: accountCount() });
 });
@@ -92,6 +92,7 @@ function roomView(room) {
     })),
     moves: room.moves,
     shots: room.shots ?? [],
+    magic: room.magic ?? [],
     turn: room.state.turn,
     solo: room.solo === true,
   };
@@ -126,11 +127,11 @@ function leaveRoom(ws, { notify = true } = {}) {
     return;
   }
 
-  // a finished game keeps its final position for the player still at the table
   const finished = gameResult(room.state, room.moves) !== null;
   if (!finished) {
     room.moves = [];
     room.shots = [];
+    room.magic = [];
     room.state = initialState();
   }
 
@@ -146,7 +147,7 @@ function seatPlayer(ws, player, mode) {
   leaveRoom(ws);
   dropFromQueue(ws);
   const code = makeCode();
-  const room = { code, mode, players: [{ ...player, ws }], moves: [], shots: [], state: initialState() };
+  const room = { code, mode, players: [{ ...player, ws }], moves: [], shots: [], magic: [], state: initialState() };
   rooms.set(code, room);
   ws.data.roomCode = code;
   pushRoom(room);
@@ -170,6 +171,7 @@ function tryPair() {
       ],
       moves: [],
       shots: [],
+      magic: [],
       state: initialState(),
     };
     rooms.set(code, room);
@@ -198,8 +200,6 @@ server.on('upgrade', (req, socket, head) => {
     return;
   }
 
-  // no session, no lobby: the handshake itself is refused, so a bot never
-  // gets a socket to talk to (a proxied close would just hang instead)
   const account = userForToken(searchParams.get('token'));
   if (!account) {
     socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
@@ -301,7 +301,6 @@ wss.on('connection', (ws, _req, account, ip) => {
       const room = rooms.get(ws.data.roomCode);
       if (!room || room.players.length < (room.solo ? 1 : CAPACITY)) return;
 
-      // a rejected move comes back as the authoritative snapshot
       const resync = () => send(ws, { t: 'room', room: roomView(room) });
 
       const index = room.players.findIndex((player) => player.ws === ws);
@@ -320,16 +319,17 @@ wss.on('connection', (ws, _req, account, ip) => {
       const requested = message.move?.promotion;
       const promotion = ['q', 'r', 'b', 'n'].includes(requested) ? requested : undefined;
 
-      // a finished game stays finished, even if a client keeps sending moves
       if (gameResult(room.state, room.moves) !== null) return resync();
 
-      // the shared engine decides legality
       const next = applyMove(room.state, from, to, promotion);
       if (!next) return resync();
 
       room.state = next;
       const move = promotion ? { from, to, promotion } : { from, to };
       room.moves.push(move);
+      // a normal piece landing on a special one takes it off the board
+      const cleared = magicAfterMove(room, to);
+      if (cleared) for (const player of room.players) send(player.ws, cleared);
 
       for (const player of room.players) {
         send(player.ws, { t: 'move', move, turn: next.turn });
@@ -342,6 +342,11 @@ wss.on('connection', (ws, _req, account, ip) => {
       return;
     }
 
+    if (message.t === 'spawn' || message.t === 'magic') {
+      powerMessage(ws, message, rooms, send);
+      return;
+    }
+
     if (message.t === 'chat') {
       const room = rooms.get(ws.data.roomCode);
       if (!room) return;
@@ -349,8 +354,6 @@ wss.on('connection', (ws, _req, account, ip) => {
       if (!from) return;
       const text = typeof message.text === 'string' ? message.text.trim().slice(0, 300) : '';
       if (!text) return;
-      // the sender id lets each client line its own messages up on the right;
-      // the timestamp is what the bubble footer shows
       const payload = { t: 'chat', id: from.id, from: from.name, text, at: Date.now() };
       for (const player of room.players) send(player.ws, payload);
       return;
@@ -367,6 +370,7 @@ wss.on('connection', (ws, _req, account, ip) => {
       room.state = initialState();
       room.moves = [];
       room.shots = [];
+      room.magic = [];
       pushRoom(room);
       return;
     }
@@ -405,6 +409,7 @@ rooms.set(TEST_CODE, {
   players: [],
   moves: [],
   shots: [],
+  magic: [],
   state: initialState(),
 });
 
