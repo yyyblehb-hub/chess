@@ -37,15 +37,6 @@ const MutedIcon = () => (
   </svg>
 );
 
-const FullscreenIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M9.5 4H4v5.5" />
-    <path d="M14.5 4H20v5.5" />
-    <path d="M14.5 20H20v-5.5" />
-    <path d="M9.5 20H4v-5.5" />
-  </svg>
-);
-
 const BackIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="m14.5 5.5-7 6.5 7 6.5" />
@@ -879,9 +870,6 @@ export default function App() {
             onClick={toggleMusic}
           >
             {musicOn ? <SpeakerIcon /> : <MutedIcon />}
-          </button>
-          <button className="icon" aria-label="Toggle full screen" onClick={() => void toggleFullscreen()}>
-            <FullscreenIcon />
           </button>
         </header>
 
