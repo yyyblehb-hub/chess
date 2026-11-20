@@ -1,0 +1,280 @@
+/* the result screen, loaded last so it owns these rules outright */
+
+.gameover {
+  perspective: 900px;
+}
+
+/* the curtain: black, so the board art never shows through the blur of the wipe */
+
+.gameover-black {
+  background: #000;
+  animation-duration: 440ms;
+}
+
+/* a warm breath of light behind the card — only when the game went your way */
+
+.gameover-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 130vw;
+  height: 130vw;
+  margin: -65vw 0 0 -65vw;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(237, 220, 192, 0.16),
+    rgba(237, 220, 192, 0.05) 42%,
+    rgba(237, 220, 192, 0) 68%
+  );
+  opacity: 0;
+  pointer-events: none;
+}
+
+.gameover.win .gameover-glow {
+  animation: glow-breathe 3.8s ease-in-out 560ms infinite;
+}
+
+@keyframes glow-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+/* the card */
+
+.result-card {
+  gap: 6px;
+  width: min(100%, 322px);
+  padding: 24px 22px 20px;
+  overflow: hidden;
+  border: 1px solid rgba(237, 220, 192, 0.14);
+  border-radius: 18px;
+  background: #0e0b08;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.72),
+    inset 0 1px 0 rgba(237, 220, 192, 0.09);
+  animation: result-card-in 460ms cubic-bezier(0.16, 1, 0.3, 1) 230ms both;
+}
+
+/* a single diagonal sheen across the card as it lands */
+
+.result-card::after {
+  content: '';
+  position: absolute;
+  inset: -40% -60%;
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 42%,
+    rgba(255, 255, 255, 0.07) 50%,
+    rgba(255, 255, 255, 0) 58%
+  );
+  transform: translateX(-70%);
+  animation: sheen 1100ms ease-out 760ms both;
+  pointer-events: none;
+}
+
+@keyframes sheen {
+  to {
+    transform: translateX(70%);
+  }
+}
+
+.gameover.loss .result-card {
+  border-color: rgba(239, 228, 208, 0.09);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.76);
+}
+
+/* the crest: a cream medallion that pops, then draws its emblem */
+
+.result-crest {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 6px;
+  border: 1px solid rgba(237, 220, 192, 0.26);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, rgba(237, 220, 192, 0.18), rgba(237, 220, 192, 0.03));
+  color: var(--accent);
+  animation: crest-pop 560ms cubic-bezier(0.16, 1.5, 0.34, 1) 380ms both;
+}
+
+.result-crest svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.result-crest path {
+  stroke-dasharray: 80;
+  stroke-dashoffset: 80;
+  animation: crest-draw 620ms ease-out 720ms forwards;
+}
+
+@keyframes crest-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-18deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes crest-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* a win gets a slow ring of light pushing out of the medallion */
+
+.gameover.win .result-crest {
+  border-color: rgba(237, 220, 192, 0.42);
+  box-shadow: 0 0 0 0 rgba(237, 220, 192, 0.35);
+  animation:
+    crest-pop 560ms cubic-bezier(0.16, 1.5, 0.34, 1) 380ms both,
+    crest-ring 2.6s ease-out 900ms infinite;
+}
+
+@keyframes crest-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(237, 220, 192, 0.3);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 16px rgba(237, 220, 192, 0);
+  }
+}
+
+.gameover.loss .result-crest,
+.gameover.draw .result-crest {
+  color: rgba(239, 228, 208, 0.62);
+  background: radial-gradient(circle at 50% 30%, rgba(239, 228, 208, 0.09), rgba(239, 228, 208, 0.02));
+}
+
+/* the words, each arriving a beat after the last */
+
+.result-kicker {
+  color: #9c9184;
+  animation: rise-in 360ms ease-out 460ms both;
+}
+
+.result-title {
+  font-size: 29px;
+  letter-spacing: -0.015em;
+  color: #f3ead9;
+  animation: title-in 520ms cubic-bezier(0.16, 1, 0.3, 1) 500ms both;
+}
+
+.gameover.win .result-title {
+  color: #f6ecd8;
+  text-shadow: 0 0 26px rgba(237, 220, 192, 0.28);
+}
+
+.gameover.loss .result-title {
+  color: #cbbfae;
+  text-shadow: none;
+}
+
+.result-sub {
+  color: #9c9184;
+  animation: rise-in 360ms ease-out 580ms both;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes title-in {
+  from {
+    opacity: 0;
+    letter-spacing: 0.08em;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    letter-spacing: -0.015em;
+    transform: none;
+  }
+}
+
+/* the buttons: warm cream on top, quiet slate under it, staggered in */
+
+.result-actions {
+  margin-top: 22px;
+}
+
+.result-actions .btn {
+  border-radius: 11px;
+  animation: rise-in 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.result-actions .btn:nth-child(1) {
+  animation-delay: 660ms;
+}
+
+.result-actions .btn:nth-child(2) {
+  animation-delay: 740ms;
+}
+
+.result-actions .btn.primary,
+.result-actions .btn.primary:active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #16110a;
+}
+
+.result-actions .btn.primary:active {
+  transform: translateY(1px);
+  filter: brightness(0.94);
+}
+
+.result-actions .btn.ghost,
+.result-actions .btn.ghost:active {
+  border-color: rgba(239, 228, 208, 0.12);
+  background: #1a1714;
+  color: #e6dbc8;
+}
+
+.result-actions .btn.ghost:active {
+  background: #23201c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gameover-black,
+  .gameover-glow,
+  .result-card,
+  .result-card::after,
+  .result-crest,
+  .result-crest path,
+  .result-kicker,
+  .result-title,
+  .result-sub,
+  .result-actions .btn {
+    animation: none;
+  }
+
+  .result-crest path {
+    stroke-dashoffset: 0;
+  }
+}
