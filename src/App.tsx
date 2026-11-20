@@ -309,7 +309,6 @@ export default function App() {
             onCreate={startCreate}
             onJoin={() => setScreen('join')}
             onSettings={() => setScreen('settings')}
-            onEdit={() => setScreen('settings')}
             onResign={resign}
           />
         )}
