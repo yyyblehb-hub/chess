@@ -2,7 +2,7 @@ const PROFILE_KEY = 'chess.profile.v1';
 const ID_KEY = 'chess.id.v1';
 export type TrackId = 'beta' | 'diversion' | 'queen' | 'hopes';
 
-const TRACK_KEY = 'chess.track.v1';
+const TRACK_KEY = 'chess.track.v2';
 const TRACK_IDS: TrackId[] = ['beta', 'diversion', 'queen', 'hopes'];
 
 /** The chosen song is a device preference and follows a player between profiles. */
@@ -13,7 +13,7 @@ export function loadTrack(): TrackId {
   } catch {
     /* storage blocked; the original menu song plays */
   }
-  return 'beta';
+  return 'queen';
 }
 
 export function saveTrack(track: TrackId) {
