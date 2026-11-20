@@ -314,7 +314,13 @@ export default function App() {
         )}
 
         {screen === 'settings' && profile && (
-          <SettingsScreen profile={profile} track={track} onChange={saveTag} onTrack={selectTrack} />
+          <SettingsScreen
+            profile={profile}
+            track={track}
+            onChange={saveTag}
+            onTrack={selectTrack}
+            onSignOut={resign}
+          />
         )}
 
         {screen === 'join' && <JoinScreen busy={joinBusy} onJoin={submitJoin} />}
