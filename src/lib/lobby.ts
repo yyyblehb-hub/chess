@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Color, Move } from './chess';
+import type { MagicEvent } from './fairy';
 import { sessionDead } from './auth';
 
 export type Player = {
@@ -19,6 +20,8 @@ export type Room = {
   turn: Color;
   /** squares emptied by the admin sniper, laid over the move list */
   shots?: number[];
+  /** the admin's special pieces: spawns, moves and removals, in order */
+  magic?: MagicEvent[];
   solo?: boolean;
 };
 
@@ -27,6 +30,7 @@ export type ServerMessage =
   | { t: 'move'; move: Move; turn: Color }
   | { t: 'shoot'; square: number; shots: number[]; by?: string }
   | { t: 'aim'; on: boolean; x: number; y: number }
+  | { t: 'magic'; events: MagicEvent[] }
   | { t: 'searching' }
   | { t: 'left' }
   | { t: 'title'; title: string | null }
