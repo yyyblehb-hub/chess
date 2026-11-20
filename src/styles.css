@@ -46,39 +46,10 @@ input {
   background-repeat: no-repeat;
 }
 
-/* behind the board: near black, flat, no artwork */
+/* behind the board: pure black, flat, no artwork */
 .app.in-game {
   background-image: none;
-  background-color: #12110f;
-}
-
-/* designs picked in settings; wood keeps the artwork */
-.app.theme-black {
-  background-image: none;
   background-color: #000;
-}
-
-.app.theme-gray {
-  background-image: none;
-  background-color: #3a3a3a;
-}
-
-.app.theme-pink {
-  background-image: none;
-  background-color: #93435f;
-}
-
-.app.theme-blue {
-  background-image: none;
-  background-color: #101a2e;
-}
-
-.app.theme-checker {
-  background-color: #6b4a2f;
-  background-image: repeating-conic-gradient(#6b4a2f 0% 25%, #8a6240 0% 50%);
-  background-size: 44px 44px;
-  background-position: 0 0;
-  background-repeat: repeat;
 }
 
 /* like play.chess.com, the board runs to the edges of the screen */
@@ -177,10 +148,6 @@ input {
   justify-content: flex-start;
   overflow-y: auto;
   padding-bottom: 16px;
-}
-
-.screen.settings .push {
-  margin-top: 0;
 }
 
 .label {
@@ -460,107 +427,126 @@ input {
   white-space: nowrap;
 }
 
-/* design picker */
+/* music player */
 
-.themes {
+.player {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.player-top {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.theme {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font-size: 10px;
-  letter-spacing: 0.03em;
-  cursor: pointer;
-}
-
-.theme.sel {
-  color: var(--text);
-}
-
-.swatch {
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
+.cover {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  background-image: url('/assets/chess-bg.jpg');
   background-size: cover;
   background-position: center;
 }
 
-.theme.sel .swatch {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.swatch.wood {
-  background-image: url('/assets/chess-bg.jpg');
-}
-
-.swatch.black {
-  background-color: #000;
-}
-
-.swatch.gray {
-  background-color: #3a3a3a;
-}
-
-.swatch.pink {
-  background-color: #93435f;
-}
-
-.swatch.blue {
-  background-color: #101a2e;
-}
-
-.swatch.checker {
-  background-color: #6b4a2f;
-  background-image: repeating-conic-gradient(#6b4a2f 0% 25%, #8a6240 0% 50%);
-  background-size: 20px 20px;
-}
-
-/* music picker */
-
-.tracks {
+.player-meta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.track {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
   gap: 2px;
-  padding: 9px 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--field);
+  flex: 1;
+  min-width: 0;
+}
+
+.player-title {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-by {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.pbtn {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
   color: var(--text);
-  text-align: left;
   cursor: pointer;
 }
 
-.track.sel {
-  border-color: var(--accent);
-  background: rgba(237, 220, 192, 0.12);
+.pbtn svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  stroke: none;
 }
 
-.track-name {
-  font-size: 13px;
-  font-weight: 600;
+.pbtn.play {
+  width: 34px;
+  height: 34px;
+  background: var(--accent);
+  color: #20150d;
 }
 
-.track-by {
-  font-size: 11px;
+.pbtn.play svg {
+  width: 15px;
+  height: 15px;
+}
+
+.pbtn:active {
+  opacity: 0.7;
+}
+
+.player-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time {
+  min-width: 26px;
+  font-size: 10px;
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.time:last-child {
+  text-align: right;
+}
+
+.seek {
+  flex: 1;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 /* in-game chat */
