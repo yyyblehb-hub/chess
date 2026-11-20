@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
@@ -14,6 +14,7 @@ import express from 'express';
 const DATA = path.join(process.cwd(), 'server', 'data');
 const ACCOUNTS_FILE = path.join(DATA, 'accounts.json');
 const BLOCKS_FILE = path.join(DATA, 'blocked.json');
+const ADMIN_FILE = path.join(DATA, 'admin.json');
 const PLAYERS_FILE = path.join(DATA, 'players.json');
 const PINNED_FIRST = (process.env.GM_ID || '').trim();
 
@@ -232,6 +233,35 @@ export const guard = {
   },
 };
 
+/* ---------- the admin claim ---------- */
+
+/** ADMIN_NAME pins the claim to one account before anyone else can take it */
+const ADMIN_NAME = (process.env.ADMIN_NAME || '').trim().toLowerCase();
+let adminRecord = readJson(ADMIN_FILE, null);
+
+/** the account holding the menu, if it has been claimed at all */
+export function adminHolder() {
+  return adminRecord ? { id: adminRecord.id, name: adminRecord.name } : null;
+}
+
+function holdsAdmin(user) {
+  return Boolean(adminRecord && user && adminRecord.id === user.id);
+}
+
+/**
+ * The first signed-in account that asks keeps the menu for good. It is never
+ * handed to a second account and signing out does not release it.
+ */
+function claimAdmin(user) {
+  if (ADMIN_NAME && user.name.toLowerCase() !== ADMIN_NAME) return null;
+  if (!adminRecord) {
+    adminRecord = { id: user.id, name: user.name, at: new Date().toISOString() };
+    writeJson(ADMIN_FILE, adminRecord);
+    return adminRecord;
+  }
+  return holdsAdmin(user) ? adminRecord : null;
+}
+
 /* ---------- http ---------- */
 
 function bearer(req) {
@@ -310,6 +340,25 @@ authRouter.get('/me', (req, res) => {
 authRouter.post('/logout', (req, res) => {
   revoke(bearer(req));
   res.json({ ok: true });
+});
+
+authRouter.get('/admin', (req, res) => {
+  const user = userForToken(bearer(req));
+  if (!user) return res.status(401).json({ error: 'Sign in again' });
+  res.json({ admin: holdsAdmin(user) });
+});
+
+authRouter.post('/admin/claim', (req, res) => {
+  const user = userForToken(bearer(req));
+  if (!user) return res.status(401).json({ error: 'Sign in again' });
+  const record = claimAdmin(user);
+  if (!record) {
+    const taken = adminRecord !== null;
+    return res
+      .status(409)
+      .json({ error: taken ? 'Admin is already taken' : 'Admin is reserved for another name' });
+  }
+  res.json({ admin: true });
 });
 
 /** how many accounts exist, for the health ping */
