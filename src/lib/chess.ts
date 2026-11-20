@@ -354,6 +354,54 @@ export function allMoves(state: GameState): Move[] {
   return moves;
 }
 
+/** The square name chess players use, e.g. 12 -> d8, 63 -> h1. */
+export const squareName = (square: number) => `${String.fromCharCode(97 + fileOf(square))}${8 - rankOf(square)}`;
+
+/**
+ * Standard algebraic notation, the way chess.com writes its move list:
+ * e4, Nf3, exd5, O-O, e8=Q+, Qh4#.
+ */
+export function moveNotation(state: GameState, move: Move): string {
+  const piece = state.board[move.from];
+  if (!piece) return '';
+  const target = state.board[move.to];
+
+  const next = applyMove(state, move.from, move.to, move.promotion);
+  const suffix = next ? (gameStatus(next) === 'checkmate' ? '#' : inCheck(next, next.turn) ? '+' : '') : '';
+
+  // castling is written as the king's two-file step; the rook is not named
+  if (piece.type === 'k' && Math.abs(fileOf(move.to) - fileOf(move.from)) === 2) {
+    return `${fileOf(move.to) > fileOf(move.from) ? 'O-O' : 'O-O-O'}${suffix}`;
+  }
+
+  const capture = target !== null || (piece.type === 'p' && fileOf(move.from) !== fileOf(move.to));
+
+  if (piece.type === 'p') {
+    const start = capture ? `${String.fromCharCode(97 + fileOf(move.from))}x` : '';
+    const promotion = move.promotion ? `=${move.promotion.toUpperCase()}` : '';
+    return `${start}${squareName(move.to)}${promotion}${suffix}`;
+  }
+
+  let text = piece.type.toUpperCase();
+  // two of the same piece can reach one square: name the file, then the rank
+  const rivals = allMoves(state).filter(
+    (other) =>
+      other.to === move.to &&
+      other.from !== move.from &&
+      state.board[other.from]?.type === piece.type &&
+      state.board[other.from]?.color === piece.color,
+  );
+  if (rivals.length > 0) {
+    const file = String.fromCharCode(97 + fileOf(move.from));
+    const rank = String(8 - rankOf(move.from));
+    const sameFile = rivals.some((other) => fileOf(other.from) === fileOf(move.from));
+    const sameRank = rivals.some((other) => rankOf(other.from) === rankOf(move.from));
+    text += !sameFile ? file : !sameRank ? rank : squareName(move.from);
+  }
+
+  return `${text}${capture ? 'x' : ''}${squareName(move.to)}${suffix}`;
+}
+
 export type Status = 'playing' | 'check' | 'checkmate' | 'stalemate';
 
 export function gameStatus(state: GameState): Status {
