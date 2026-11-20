@@ -49,10 +49,12 @@ const ChatIcon = () => (
   </svg>
 );
 
-const MovesIcon = () => (
+const FullscreenIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M9 6.5h11M9 12h11M9 17.5h11" />
-    <path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" />
+    <path d="M9.5 4H4v5.5" />
+    <path d="M14.5 4H20v5.5" />
+    <path d="M14.5 20H20v-5.5" />
+    <path d="M9.5 20H4v-5.5" />
   </svg>
 );
 
@@ -846,22 +848,13 @@ export default function App() {
             <span className="logo">Chess</span>
           )}
           <span className="grow" />
-          {inGame && room?.solo !== true && (
+          {inGame && (
             <button
-              className={`icon${panel === 'chat' ? ' active' : ''}`}
-              aria-label="Open chat"
+              className={`icon${panel ? ' active' : ''}`}
+              aria-label={room?.solo === true ? 'Open move list' : 'Open chat'}
               onClick={() => setPanel('chat')}
             >
               <ChatIcon />
-            </button>
-          )}
-          {inGame && (
-            <button
-              className={`icon${panel === 'moves' ? ' active' : ''}`}
-              aria-label="Open move list"
-              onClick={() => setPanel('moves')}
-            >
-              <MovesIcon />
             </button>
           )}
           <button
@@ -870,6 +863,9 @@ export default function App() {
             onClick={toggleMusic}
           >
             {musicOn ? <SpeakerIcon /> : <MutedIcon />}
+          </button>
+          <button className="icon" aria-label="Toggle full screen" onClick={() => void toggleFullscreen()}>
+            <FullscreenIcon />
           </button>
         </header>
 
