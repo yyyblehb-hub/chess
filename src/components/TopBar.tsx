@@ -1,4 +1,10 @@
+import { useEffect, useRef, useState } from 'react';
+import { isAdmin, setAdmin } from '../lib/admin';
 import { BackIcon, ChatIcon, FullscreenIcon, MutedIcon, SpeakerIcon } from './chrome';
+
+/** five taps on the wordmark inside three seconds opens the admin menu */
+const TAPS = 5;
+const WINDOW_MS = 3000;
 
 export default function TopBar({
   onBack,
@@ -22,6 +28,30 @@ export default function TopBar({
   onMusic: () => void;
   onFullscreen: () => void;
 }) {
+  const taps = useRef<number[]>([]);
+  const [flash, setFlash] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!flash) return;
+    const timer = setTimeout(() => setFlash(null), 2400);
+    return () => clearTimeout(timer);
+  }, [flash]);
+
+  // the wordmark is the lock: only someone who knows about it taps it five times
+  const tapLogo = () => {
+    const now = Date.now();
+    taps.current = [...taps.current.filter((at) => now - at < WINDOW_MS), now];
+    if (taps.current.length < TAPS) return;
+    taps.current = [];
+
+    if (isAdmin()) {
+      setFlash('Admin already unlocked');
+      return;
+    }
+    setAdmin(true);
+    setFlash('Admin unlocked');
+  };
+
   return (
     <header className="bar">
       {onBack ? (
@@ -29,7 +59,9 @@ export default function TopBar({
           <BackIcon />
         </button>
       ) : (
-        <span className="logo">Chess</span>
+        <span className="logo" onClick={tapLogo}>
+          Chess
+        </span>
       )}
       <span className="grow" />
       {inGame && (
@@ -58,6 +90,12 @@ export default function TopBar({
       <button className="icon" aria-label="Toggle full screen" onClick={onFullscreen}>
         <FullscreenIcon />
       </button>
+
+      {flash && (
+        <div className="toast" role="status">
+          {flash}
+        </div>
+      )}
     </header>
   );
 }
