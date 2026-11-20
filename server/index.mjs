@@ -6,7 +6,7 @@ import express from 'express';
 import { WebSocketServer } from 'ws';
 import { applyMove, gameResult, initialState } from './chess.mjs';
 import { accountCount, authRouter, clientIp, guard, readAppearance, userForToken } from './auth.mjs';
-import { sniper } from './sniper.mjs';
+import { sniperMessage } from './sniper.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -337,8 +337,8 @@ wss.on('connection', (ws, _req, account, ip) => {
       return;
     }
 
-    if (message.t === 'shoot') {
-      sniper(ws, message, rooms, send);
+    if (message.t === 'shoot' || message.t === 'aim') {
+      sniperMessage(ws, message, rooms, send);
       return;
     }
 
