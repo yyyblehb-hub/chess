@@ -48,10 +48,10 @@ input {
   background-repeat: no-repeat;
 }
 
-/* behind the board: the slate the board sits on, #272A2E */
+/* behind the board: the slate the board sits on, #1B1D20 */
 .app.in-game {
   background-image: none;
-  background-color: #272a2e;
+  background-color: #1b1d20;
 }
 
 /* like play.chess.com, the board runs to the edges of the screen */
@@ -610,7 +610,7 @@ input {
 .game {
   flex: 1;
   min-height: 0;
-  width: min(100%, max(200px, calc(100dvh - 260px)));
+  width: min(100%, max(200px, calc(100dvh - 250px)));
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -618,86 +618,73 @@ input {
   gap: 10px;
 }
 
-/* move bar: step back and forward through the game, the way chess.com plays it
-   back under the board */
+/* the moves reach across the bottom of the board as one line that grows a
+   little every turn; bare chevrons step back and forward through it */
 
 .nav {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
-  height: 40px;
+  height: 26px;
   flex: 0 0 auto;
 }
 
 .nav-btn {
-  width: 40px;
-  height: 40px;
+  width: 16px;
+  height: 100%;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
   padding: 0;
   border: 0;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--text);
+  background: none;
+  color: var(--dim);
+  font-size: 16px;
+  line-height: 1;
   cursor: pointer;
 }
 
 .nav-btn:active:not(:disabled) {
-  background: rgba(255, 255, 255, 0.14);
+  color: var(--text);
 }
 
 .nav-btn:disabled {
-  opacity: 0.32;
+  opacity: 0.25;
   cursor: default;
 }
 
-.nav-btn svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.nav-now {
+.nav-track {
   flex: 1;
   min-width: 0;
-  height: 40px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text);
+  gap: 6px;
+  height: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
   cursor: pointer;
 }
 
-.nav-now strong {
-  font-size: 14px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+.nav-track::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-move {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--dim);
   white-space: nowrap;
 }
 
-.nav-now span {
-  min-width: 0;
-  font-size: 12px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.nav-move.played {
+  color: var(--text);
 }
 
-.nav-now.looking {
-  border-color: rgba(129, 182, 76, 0.55);
-  background: rgba(129, 182, 76, 0.12);
+.nav-move.now {
+  font-weight: 700;
+  color: #ffffff;
 }
 
 .pcard {
@@ -1040,7 +1027,7 @@ input {
 .gameover-black {
   position: absolute;
   inset: 0;
-  background: #272a2e;
+  background: #1b1d20;
   animation: gameover-wipe 520ms cubic-bezier(0.22, 0.9, 0.2, 1) forwards;
 }
 
