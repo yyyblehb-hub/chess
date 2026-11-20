@@ -1,480 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import GamePanel, { type ChatLine } from './components/GamePanel';
 import GameScreen from './components/GameScreen';
-import NameTag from './components/NameTag';
+import TopBar from './components/TopBar';
+import { toggleFullscreen } from './components/chrome';
+import { JoinScreen, MenuScreen, RoomScreen, SearchScreen } from './screens/lobby';
+import { IdentityScreen, SettingsScreen } from './screens/setup';
 import { type Move } from './lib/chess';
-import { useLobby, type Player, type Room, type ServerMessage } from './lib/lobby';
-import {
-  clearProfile,
-  fileToAvatar,
-  fileToTag,
-  loadId,
-  loadProfile,
-  loadTrack,
-  saveProfile,
-  saveTrack,
-  type Profile,
-  type TrackId,
-} from './lib/profile';
+import { useLobby, type Room, type ServerMessage } from './lib/lobby';
+import { useMusic } from './lib/music';
+import { clearProfile, loadProfile, loadTrack, saveProfile, type Profile, type TrackId } from './lib/profile';
 import { playMoveSound } from './lib/sound';
 
 type Screen = 'identity' | 'menu' | 'settings' | 'join' | 'search' | 'room';
-
-/* ---------- icons ---------- */
-
-const SpeakerIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M4 9.5v5h3.2L12.5 19V5L7.2 9.5H4Z" />
-    <path d="M16 9a4.5 4.5 0 0 1 0 6" />
-    <path d="M18.7 6.2a8.2 8.2 0 0 1 0 11.6" />
-  </svg>
-);
-
-const MutedIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M4 9.5v5h3.2L12.5 19V5L7.2 9.5H4Z" />
-    <path d="m16.2 9.8 4.4 4.4M20.6 9.8l-4.4 4.4" />
-  </svg>
-);
-
-const BackIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="m14.5 5.5-7 6.5 7 6.5" />
-  </svg>
-);
-
-const ChatIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M20 12.5a6.8 6.8 0 0 1-7.5 6.8 8.6 8.6 0 0 1-2.6-.6L5.5 20l.9-3.2A6.6 6.6 0 0 1 4.5 12.5 6.8 6.8 0 0 1 12 5.7a6.8 6.8 0 0 1 8 6.8Z" />
-  </svg>
-);
-
-const FullscreenIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M9.5 4H4v5.5" />
-    <path d="M14.5 4H20v5.5" />
-    <path d="M14.5 20H20v-5.5" />
-    <path d="M9.5 20H4v-5.5" />
-  </svg>
-);
-
-/* ---------- fullscreen ---------- */
-
-type FullscreenDocument = Document & {
-  webkitFullscreenElement?: Element | null;
-  webkitExitFullscreen?: () => Promise<void>;
-};
-type FullscreenElement = HTMLElement & {
-  webkitRequestFullscreen?: () => Promise<void>;
-};
-
-async function toggleFullscreen() {
-  const doc = document as FullscreenDocument;
-  const element = document.documentElement as FullscreenElement;
-  try {
-    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
-      if (doc.exitFullscreen) await doc.exitFullscreen();
-      else await doc.webkitExitFullscreen?.();
-      return;
-    }
-    if (element.requestFullscreen) await element.requestFullscreen({ navigationUI: 'hide' });
-    else await element.webkitRequestFullscreen?.();
-  } catch {
-    /* iOS Safari refuses on non-video elements — the layout already fills the screen */
-  }
-}
-
-/* ---------- player row ---------- */
-
-function PlayerRow({ player, you }: { player?: Player; you: string }) {
-  return (
-    <div className={`row${player ? '' : ' row-empty'}`}>
-      <div className="pfp tiny">
-        {player ? player.avatar ? <img src={player.avatar} alt="" /> : player.name.slice(0, 1).toUpperCase() : '?'}
-      </div>
-      <span className="row-name">
-        {player ? (
-          <>
-            <NameTag tag={player.tag} />
-            {player.id === you ? `${player.name} (you)` : player.name}
-          </>
-        ) : (
-          'Empty'
-        )}
-      </span>
-    </div>
-  );
-}
-
-/* ---------- identity ---------- */
-
-function IdentityScreen({
-  initial,
-  onSubmit,
-}: {
-  initial: Profile | null;
-  onSubmit: (profile: Profile) => void;
-}) {
-  const idRef = useRef(initial?.id ?? loadId());
-  const [name, setName] = useState(initial?.name ?? '');
-  const [avatar, setAvatar] = useState<string | null>(initial?.avatar ?? null);
-  const [loading, setLoading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const trimmed = name.trim();
-  const ready = trimmed.length >= 2;
-
-  const pickAvatar = async (file: File | undefined) => {
-    if (!file) return;
-    setLoading(true);
-    try {
-      setAvatar(await fileToAvatar(file));
-    } catch {
-      /* unsupported image — keep whatever is there */
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const submit = () => {
-    if (!ready) return;
-    onSubmit({
-      id: idRef.current,
-      name: trimmed,
-      avatar,
-      tag: initial?.tag ?? null,
-      title: initial?.title ?? null,
-    });
-  };
-
-  return (
-    <div className="screen identity">
-      <div className="setup">
-        <button
-          type="button"
-          className="pfp"
-          onClick={() => fileRef.current?.click()}
-          aria-label="Choose a profile picture"
-        >
-          {avatar ? <img src={avatar} alt="" /> : <span>{loading ? '' : '+'}</span>}
-        </button>
-        <div className="setup-field">
-          <label className="label" htmlFor="player-name">
-            Name
-          </label>
-          <input
-            id="player-name"
-            className="field"
-            value={name}
-            maxLength={16}
-            placeholder="Name"
-            autoComplete="nickname"
-            onChange={(event) => setName(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') submit();
-            }}
-          />
-        </div>
-      </div>
-
-      {avatar && (
-        <button type="button" className="link" onClick={() => setAvatar(null)}>
-          Remove picture
-        </button>
-      )}
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(event) => {
-          void pickAvatar(event.target.files?.[0]);
-          event.target.value = '';
-        }}
-      />
-
-      <button className="btn primary push" disabled={!ready} onClick={submit}>
-        Continue
-      </button>
-    </div>
-  );
-}
-
-/* ---------- menu ---------- */
-
-function MenuScreen({
-  profile,
-  onFind,
-  onCreate,
-  onJoin,
-  onSettings,
-  onEdit,
-  onResign,
-}: {
-  profile: Profile;
-  onFind: () => void;
-  onCreate: () => void;
-  onJoin: () => void;
-  onSettings: () => void;
-  onEdit: () => void;
-  onResign: () => void;
-}) {
-  return (
-    <div className="screen">
-      <div className="me">
-        <div className="pfp small">
-          {profile.avatar ? <img src={profile.avatar} alt="" /> : profile.name.slice(0, 1).toUpperCase()}
-        </div>
-        <span className="me-name">
-          <NameTag tag={profile.tag} />
-          {profile.name}
-        </span>
-        <button className="link" onClick={onEdit}>
-          Edit
-        </button>
-      </div>
-
-      <div className="actions">
-        <button className="btn primary" onClick={onFind}>
-          Find random match
-        </button>
-        <button className="btn" onClick={onCreate}>
-          Create match
-        </button>
-        <button className="btn" onClick={onJoin}>
-          Join match
-        </button>
-        <button className="btn" onClick={onSettings}>
-          Settings
-        </button>
-      </div>
-
-      <button className="dev-resign push" onClick={onResign}>
-        Click here to resign ! FOR DEV!
-      </button>
-    </div>
-  );
-}
-
-/* ---------- join ---------- */
-
-function JoinScreen({ busy, onJoin }: { busy: boolean; onJoin: (code: string) => void }) {
-  const [code, setCode] = useState('');
-  const ready = code.length >= 4;
-
-  return (
-    <div className="screen">
-      <div className="setup-field">
-        <input
-          id="join-code"
-          className="field code-input"
-          aria-label="Table code"
-          value={code}
-          maxLength={5}
-          inputMode="text"
-          autoCapitalize="characters"
-          autoComplete="off"
-          spellCheck={false}
-          autoFocus
-          onChange={(event) =>
-            setCode(
-              event.target.value
-                .toUpperCase()
-                .replace(/[^A-Z0-9]/g, '')
-                .slice(0, 5),
-            )
-          }
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && ready && !busy) onJoin(code);
-          }}
-        />
-      </div>
-
-      <button className="btn primary push" disabled={!ready || busy} onClick={() => onJoin(code)}>
-        {busy ? 'Joining...' : 'Join match'}
-      </button>
-    </div>
-  );
-}
-
-/* ---------- searching ---------- */
-
-function SearchScreen({ onCancel }: { onCancel: () => void }) {
-  const [seconds, setSeconds] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => setSeconds((value) => value + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <div className="screen">
-      <div className="searching">
-        <span className="spinner" />
-        <span>Searching...</span>
-        <span className="muted">{seconds}s</span>
-      </div>
-      <button className="btn ghost push" onClick={onCancel}>
-        Cancel
-      </button>
-    </div>
-  );
-}
-
-/* ---------- room ---------- */
-
-function RoomScreen({
-  room,
-  you,
-  onCopy,
-  onLeave,
-}: {
-  room: Room | null;
-  you: string;
-  onCopy: () => void;
-  onLeave: () => void;
-}) {
-  if (!room) {
-    return (
-      <div className="screen">
-        <div className="searching">
-          <span className="spinner" />
-          <span>Creating table...</span>
-        </div>
-      </div>
-    );
-  }
-
-  const full = room.players.length >= room.capacity;
-
-  return (
-    <div className="screen">
-      <div className="setup-field">
-        <span className="label">Code</span>
-        <button className="code" onClick={onCopy} aria-label={`Table code ${room.code}, tap to copy`}>
-          {room.code}
-        </button>
-      </div>
-
-      <div className="players">
-        <PlayerRow player={room.players[0]} you={you} />
-        <PlayerRow player={room.players[1]} you={you} />
-      </div>
-
-      <p className="muted">
-        {room.players.length} / {room.capacity} players
-      </p>
-      {full && <p className="ready">match ready</p>}
-
-      <div className="actions push">
-        <button className="btn" onClick={onCopy}>
-          Copy code
-        </button>
-        <button className="btn ghost" onClick={onLeave}>
-          Leave
-        </button>
-      </div>
-    </div>
-  );
-}
-
-const TRACKS: { id: TrackId; name: string; src: string; clip?: number }[] = [
-  // a simple beta song is cut at 01:25 and loops there
-  { id: 'beta', name: 'a simple beta song', src: '/assets/chess.m4a', clip: 85 },
-  { id: 'diversion', name: 'a simple diversion', src: '/assets/simple-diversion.mp3' },
-  { id: 'queen', name: 'queen', src: '/assets/queen.mp3' },
-  { id: 'hopes', name: 'field of hopes and dreams', src: '/assets/field-of-hopes.mp3' },
-];
-
-function trackSource(track: TrackId): string {
-  return TRACKS.find((item) => item.id === track)?.src ?? TRACKS[0].src;
-}
-
-/* ---------- settings ---------- */
-
-function SettingsScreen({
-  profile,
-  track,
-  onChange,
-  onTrack,
-}: {
-  profile: Profile;
-  track: TrackId;
-  onChange: (next: Profile) => void;
-  onTrack: (track: TrackId) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const pickTag = async (file: File | undefined) => {
-    if (!file) return;
-    setBusy(true);
-    try {
-      onChange({ ...profile, tag: await fileToTag(file) });
-    } catch {
-      /* unsupported image — keep the tag that is already there */
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="screen settings">
-      <div className="setup">
-        <button
-          type="button"
-          className="pfp"
-          onClick={() => fileRef.current?.click()}
-          aria-label="Choose a tag picture"
-        >
-          {profile.tag ? <img src={profile.tag} alt="" /> : <span>{busy ? '' : '+'}</span>}
-        </button>
-        <div className="setup-field">
-          <span className="label">Tag</span>
-          <p className="me-name">
-            <NameTag tag={profile.tag} />
-            {profile.name}
-          </p>
-        </div>
-      </div>
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(event) => {
-          void pickTag(event.target.files?.[0]);
-          event.target.value = '';
-        }}
-      />
-
-      {profile.tag && (
-        <button type="button" className="link" onClick={() => onChange({ ...profile, tag: null })}>
-          Remove picture
-        </button>
-      )}
-
-      <div className="setup-field">
-        <span className="label">Music</span>
-        <div className="tracks">
-          {TRACKS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`track${track === item.id ? ' sel' : ''}`}
-              aria-pressed={track === item.id}
-              onClick={() => onTrack(item.id)}
-            >
-              {item.name}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ---------- app ---------- */
 
@@ -486,18 +23,21 @@ export default function App() {
   const [moves, setMoves] = useState<Move[]>([]);
   const [joinBusy, setJoinBusy] = useState(false);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
-  const [musicOn, setMusicOn] = useState(false);
   const [panel, setPanel] = useState<'chat' | 'moves' | null>(null);
   const [chat, setChat] = useState<ChatLine[]>([]);
+  // messages that landed while the chat was not on screen
+  const [unread, setUnread] = useState(0);
   const [track, setTrack] = useState<TrackId>(loadTrack());
-  const trackSrc = trackSource(track);
 
   const roomRef = useRef<Room | null>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const panelRef = useRef<'chat' | 'moves' | null>(null);
+  const profileRef = useRef<Profile | null>(profile);
   // moves already shown on this board that the server has not echoed yet
   const pendingMoves = useRef<Move[]>([]);
 
   roomRef.current = room;
+  panelRef.current = panel;
+  profileRef.current = profile;
 
   const notify = useCallback((text: string) => setToast({ id: Date.now(), text }), []);
 
@@ -508,6 +48,7 @@ export default function App() {
           pendingMoves.current = [];
           if (roomRef.current?.code !== message.room.code) {
             setChat([]);
+            setUnread(0);
             setPanel(null);
           }
           setRoom(message.room);
@@ -541,7 +82,22 @@ export default function App() {
           });
           break;
         case 'chat':
-          setChat((current) => [...current, { from: message.from, text: message.text }]);
+          setChat((current) => [
+            ...current,
+            {
+              // a server that predates the id/at fields still works: the name
+              // decides the side and the time is when it landed here
+              id:
+                message.id ??
+                (profileRef.current && message.from === profileRef.current.name
+                  ? profileRef.current.id
+                  : `other:${message.from}`),
+              from: message.from,
+              text: message.text,
+              at: message.at ?? Date.now(),
+            },
+          ]);
+          if (panelRef.current !== 'chat') setUnread((count) => count + 1);
           break;
         case 'notice':
           notify(message.message);
@@ -555,6 +111,7 @@ export default function App() {
           setRoom(null);
           setMoves([]);
           setPanel(null);
+          setUnread(0);
           break;
         default:
           break;
@@ -567,8 +124,6 @@ export default function App() {
 
   // Tell the server who we are as soon as the socket is up. That sign-in is what
   // earns the titles, and the very first player ever gets GM.
-  const profileRef = useRef<Profile | null>(profile);
-  profileRef.current = profile;
   useEffect(() => {
     const current = profileRef.current;
     if (!connected || !current) return;
@@ -588,121 +143,13 @@ export default function App() {
     [send],
   );
 
-  // true only while the player wants music; used to undo browser interruptions
-  const wantMusicRef = useRef(false);
-
-  // The chosen song is the one the audio element loads. Switching songs keeps
-  // the music going, and the first gesture starts it like before.
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.src = trackSrc;
-    audio.load();
-    if (wantMusicRef.current) void audio.play().catch(() => undefined);
-  }, [trackSrc]);
-
-  // a simple beta song ends at 01:25 whatever the file's real length is.
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const clip = TRACKS.find((item) => item.id === track)?.clip;
-    if (!clip) return;
-
-    const keepClip = () => {
-      if (audio.currentTime >= clip) audio.currentTime = 0;
-    };
-    audio.addEventListener('timeupdate', keepClip);
-    return () => audio.removeEventListener('timeupdate', keepClip);
-  }, [track]);
-
-  const startMusic = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = 0.45;
-    wantMusicRef.current = true;
-    audio
-      .play()
-      .then(() => setMusicOn(true))
-      .catch(() => setMusicOn(false));
-  }, []);
-
-  // Browsers and slow connections like to pause or starve a background track
-  // (fullscreen changes, tab switches, a stalled stream). If the player never
-  // asked for silence, quietly pick it back up.
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const resume = () => {
-      if (!wantMusicRef.current || !audio.paused) return;
-      void audio.play().catch(() => {
-        /* still blocked by the browser; the next gesture retries */
-      });
-    };
-
-    // A dropped stream should not silence the menu for good, but reloading on
-    // every error event makes the track stutter — retry once, after a beat.
-    let retry: number | undefined;
-    const retryAfterError = () => {
-      if (!wantMusicRef.current) return;
-      window.clearTimeout(retry);
-      retry = window.setTimeout(() => {
-        if (!wantMusicRef.current) return;
-        audio.load();
-        void audio.play().catch(() => undefined);
-      }, 1200);
-    };
-
-    audio.addEventListener('pause', resume);
-    audio.addEventListener('error', retryAfterError);
-
-    return () => {
-      window.clearTimeout(retry);
-      audio.removeEventListener('pause', resume);
-      audio.removeEventListener('error', retryAfterError);
-    };
-  }, []);
-
-  // Music belongs to the lobby: silence it the moment the board appears, and
-  // bring it back if the player returns to the menu afterwards. A finished game
-  // stays on the board even if the other player walks away.
+  // A match silences the lobby song; leaving the board brings it back.
   const inGame =
     screen === 'room' &&
     room !== null &&
     (room.solo === true || room.players.length >= 2 || room.moves.length > 0);
-  const resumeAfterMatchRef = useRef(false);
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (inGame) {
-      if (!audio.paused || wantMusicRef.current) {
-        resumeAfterMatchRef.current = wantMusicRef.current;
-        wantMusicRef.current = false;
-        audio.pause();
-        setMusicOn(false);
-      }
-      return;
-    }
-
-    if (resumeAfterMatchRef.current) {
-      resumeAfterMatchRef.current = false;
-      startMusic();
-    }
-  }, [inGame, startMusic]);
-
-  // Music is meant to be on the whole time, so a blocked first attempt retries
-  // on the next tap instead of waiting for the speaker button.
-  useEffect(() => {
-    const resumeOnTap = () => {
-      const audio = audioRef.current;
-      if (!audio || inGame || !wantMusicRef.current || !audio.paused) return;
-      void audio.play().catch(() => undefined);
-    };
-    window.addEventListener('pointerdown', resumeOnTap);
-    return () => window.removeEventListener('pointerdown', resumeOnTap);
-  }, [inGame]);
+  const { audioRef, musicOn, startMusic, toggleMusic, pickTrack } = useMusic(track, inGame);
 
   // The board artwork is the one image the board waits for: fetch it while the
   // player is still in the menu so the board paints from cache.
@@ -728,18 +175,6 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const toggleMusic = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) {
-      startMusic();
-    } else {
-      wantMusicRef.current = false;
-      audio.pause();
-      setMusicOn(false);
-    }
-  };
-
   const saveIdentity = (next: Profile) => {
     setProfile(next);
     saveProfile(next);
@@ -751,20 +186,9 @@ export default function App() {
     saveProfile(next);
   };
 
-  const pickTrack = (next: TrackId) => {
+  const selectTrack = (next: TrackId) => {
     setTrack(next);
-    saveTrack(next);
-
-    // picking a song is a tap, so the browser will let this one play right away
-    const audio = audioRef.current;
-    if (!audio) return;
-    wantMusicRef.current = true;
-    audio.src = trackSource(next);
-    audio.load();
-    void audio
-      .play()
-      .then(() => setMusicOn(true))
-      .catch(() => undefined);
+    pickTrack(next);
   };
 
   const resign = () => {
@@ -773,6 +197,7 @@ export default function App() {
     setJoinBusy(false);
     setPanel(null);
     setChat([]);
+    setUnread(0);
     clearProfile();
     setProfile(null);
     setScreen('identity');
@@ -785,6 +210,7 @@ export default function App() {
     setJoinBusy(false);
     setPanel(null);
     setChat([]);
+    setUnread(0);
     setScreen('menu');
   };
 
@@ -835,39 +261,24 @@ export default function App() {
   return (
     <div className={`app${inGame ? ' in-game' : ''}`}>
       <div className="shell">
-        <header className="bar">
-          {canGoBack ? (
-            <button
-              className="icon"
-              aria-label="Back"
-              onClick={() => (screen === 'room' || screen === 'search' ? leaveTable() : setScreen('menu'))}
-            >
-              <BackIcon />
-            </button>
-          ) : (
-            <span className="logo">Chess</span>
-          )}
-          <span className="grow" />
-          {inGame && (
-            <button
-              className={`icon${panel ? ' active' : ''}`}
-              aria-label={room?.solo === true ? 'Open move list' : 'Open chat'}
-              onClick={() => setPanel('chat')}
-            >
-              <ChatIcon />
-            </button>
-          )}
-          <button
-            className={`icon${musicOn ? ' active' : ''}`}
-            aria-label={musicOn ? 'Pause music' : 'Play music'}
-            onClick={toggleMusic}
-          >
-            {musicOn ? <SpeakerIcon /> : <MutedIcon />}
-          </button>
-          <button className="icon" aria-label="Toggle full screen" onClick={() => void toggleFullscreen()}>
-            <FullscreenIcon />
-          </button>
-        </header>
+        <TopBar
+          onBack={
+            canGoBack
+              ? () => (screen === 'room' || screen === 'search' ? leaveTable() : setScreen('menu'))
+              : null
+          }
+          inGame={inGame}
+          solo={room?.solo === true}
+          panelOpen={panel !== null}
+          unread={unread}
+          musicOn={musicOn}
+          onChat={() => {
+            setPanel('chat');
+            setUnread(0);
+          }}
+          onMusic={toggleMusic}
+          onFullscreen={() => void toggleFullscreen()}
+        />
 
         {screen === 'identity' && <IdentityScreen initial={profile} onSubmit={saveIdentity} />}
 
@@ -884,7 +295,7 @@ export default function App() {
         )}
 
         {screen === 'settings' && profile && (
-          <SettingsScreen profile={profile} track={track} onChange={saveTag} onTrack={pickTrack} />
+          <SettingsScreen profile={profile} track={track} onChange={saveTag} onTrack={selectTrack} />
         )}
 
         {screen === 'join' && <JoinScreen busy={joinBusy} onJoin={submitJoin} />}
@@ -912,8 +323,13 @@ export default function App() {
             view={panel === 'chat' && room.solo === true ? 'moves' : panel}
             lines={chat}
             moves={moves}
+            me={profile?.id ?? ''}
+            unread={unread}
             canChat={room.solo !== true}
-            onView={(next) => setPanel(next)}
+            onView={(next) => {
+              setPanel(next);
+              if (next === 'chat') setUnread(0);
+            }}
             onSend={sendChat}
             onClose={() => setPanel(null)}
           />
