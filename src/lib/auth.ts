@@ -60,6 +60,12 @@ export async function restore(): Promise<Account | null> {
   }
 }
 
+/** used when a socket handshake is refused: is the stored session still good? */
+export async function sessionDead(): Promise<boolean> {
+  if (!getToken()) return true;
+  return (await restore()) === null;
+}
+
 export async function signOut(): Promise<void> {
   try {
     await call('/logout', {});
