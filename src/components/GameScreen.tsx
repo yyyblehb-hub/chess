@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Board from './Board';
-import { gameResult, gameStatus, moveNotation, replay, type Color, type Move } from '../lib/chess';
+import { applyMove, gameResult, initialState, moveNotation, replay, type Color, type Move } from '../lib/chess';
 import { type Profile } from '../lib/profile';
 import { type Room } from '../lib/lobby';
 import NameTag from './NameTag';
@@ -29,9 +29,7 @@ export default function GameScreen({
   const myIndex = room.players.findIndex((player) => player.id === profile.id);
   const myColor: Color = myIndex === 1 ? 'b' : 'w';
   const opponent = room.players.find((player) => player.id !== profile.id);
-  const status = gameStatus(state);
   const result = gameResult(state, moves);
-  const side = state.turn === 'w' ? 'white' : 'black';
   const over = result !== null;
 
   // stepping back through the game: 0 is the start, moves.length is the live board
@@ -44,34 +42,24 @@ export default function GameScreen({
   const step = (delta: number) =>
     setViewPly((ply) => Math.min(moves.length, Math.max(0, ply + delta)));
 
-  // the draw names chess.com prints on the result card
-  const draw =
-    result === 'stalemate'
-      ? 'stalemate'
-      : result === 'insufficient'
-        ? 'insufficient material'
-        : result === 'repetition'
-          ? 'threefold repetition'
-          : null;
+  // the whole game written out, one short notation per ply
+  const notations = useMemo(() => {
+    const list: string[] = [];
+    let before = initialState();
+    for (const move of moves) {
+      list.push(moveNotation(before, move));
+      const next = applyMove(before, move.from, move.to, move.promotion);
+      if (!next) break;
+      before = next;
+    }
+    return list;
+  }, [moves]);
 
-  const label =
-    result === 'checkmate'
-      ? solo
-        ? `checkmate · ${state.turn === 'w' ? 'black' : 'white'} won`
-        : state.turn === myColor
-          ? 'checkmate · you lost'
-          : 'checkmate · you won'
-      : draw
-        ? `draw · ${draw}`
-        : status === 'check'
-          ? solo
-            ? `${side} in check`
-            : 'check'
-          : solo
-            ? `${side} to move`
-            : state.turn === myColor
-              ? 'your move'
-              : 'waiting';
+  const trackRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const track = trackRef.current;
+    if (track) track.scrollLeft = track.scrollWidth;
+  }, [moves.length, viewPly]);
 
   // what chess.com puts in the middle of the board when the game is over
   const winner = result === 'checkmate' ? (state.turn === 'w' ? 'black' : 'white') : null;
@@ -89,23 +77,6 @@ export default function GameScreen({
 
   const opponentName = solo ? profile.name : (opponent?.name ?? 'opponent');
   const myName = profile.name;
-
-  // what the bar says: the move that led to the board you are looking at, and who played it
-  const currentMove = viewPly > 0 ? moves[viewPly - 1] : null;
-  const currentSan = currentMove ? moveNotation(replay(moves.slice(0, viewPly - 1)), currentMove) : '';
-  const mover: Color = viewPly % 2 === 1 ? 'w' : 'b';
-  const currentWho = !currentMove
-    ? ''
-    : solo
-      ? mover === 'w'
-        ? 'white'
-        : 'black'
-      : mover === myColor
-        ? 'you'
-        : opponentName;
-  const moveLabel = currentMove
-    ? `${Math.ceil(viewPly / 2)}${viewPly % 2 === 1 ? '.' : '...'} ${currentSan}`
-    : 'Start';
   const myTag = room.players[myIndex]?.tag ?? profile.tag ?? null;
   const opponentTag = solo ? myTag : (opponent?.tag ?? null);
   const opponentAvatar = solo ? profile.avatar : (opponent?.avatar ?? null);
@@ -125,7 +96,6 @@ export default function GameScreen({
             <NameTag tag={opponentTag} />
             {opponentName}
           </strong>
-          <span>{solo ? 'you · black' : 'opponent'}</span>
         </div>
         <button className="chip" onClick={onCopy} aria-label={`Table code ${room.code}, tap to copy`}>
           {room.code}
@@ -133,6 +103,16 @@ export default function GameScreen({
       </div>
 
       <Board state={shown} myColor={myColor} solo={solo} locked={over || !live} onMove={onMove} />
+
+      <div className="pcard">
+        <div className="pfp mid">{myFace}</div>
+        <div className="meta">
+          <strong>
+            <NameTag tag={myTag} />
+            {myName}
+          </strong>
+        </div>
+      </div>
 
       <div className="nav">
         <button
@@ -142,19 +122,28 @@ export default function GameScreen({
           disabled={viewPly === 0}
           onClick={() => step(-1)}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m14.5 5.5-7 6.5 7 6.5" />
-          </svg>
+          ‹
         </button>
-        <button
-          type="button"
-          className={`nav-now${live ? '' : ' looking'}`}
-          aria-label={live ? 'Live position' : 'Back to live position'}
+        <div
+          className="nav-track"
+          ref={trackRef}
+          role="button"
+          tabIndex={0}
+          aria-label={live ? 'Moves played' : 'Back to the live position'}
           onClick={() => setViewPly(moves.length)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') setViewPly(moves.length);
+          }}
         >
-          <strong>{moveLabel}</strong>
-          {currentWho && <span>{currentWho}</span>}
-        </button>
+          {notations.map((san, index) => (
+            <span
+              key={index}
+              className={`nav-move${index < viewPly ? ' played' : ''}${index === viewPly - 1 ? ' now' : ''}`}
+            >
+              {san}
+            </span>
+          ))}
+        </div>
         <button
           type="button"
           className="nav-btn"
@@ -162,21 +151,8 @@ export default function GameScreen({
           disabled={live}
           onClick={() => step(1)}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m9.5 5.5 7 6.5-7 6.5" />
-          </svg>
+          ›
         </button>
-      </div>
-
-      <div className="pcard">
-        <div className="pfp mid">{myFace}</div>
-        <div className="meta">
-          <strong>
-            <NameTag tag={myTag} />
-            {myName}
-          </strong>
-          <span className={over ? 'over' : undefined}>{label}</span>
-        </div>
       </div>
 
       {over && (
