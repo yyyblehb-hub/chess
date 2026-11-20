@@ -7,6 +7,7 @@ import { type Room } from '../lib/lobby';
 import { applyShots } from '../lib/shots';
 import { refreshAdmin } from '../lib/admin';
 import { useAim } from '../lib/aim';
+import { playShotSound, primeShot } from '../lib/sound';
 import NameTag from './NameTag';
 
 /* ---------- game ---------- */
@@ -58,7 +59,6 @@ export default function GameScreen({
   onShoot: (square: number) => void;
   onAim: (x: number, y: number, on: boolean) => void;
 }) {
-  // the sniper's emptied squares sit on top of the replayed position
   const state = useMemo(() => applyShots(replay(moves), room.shots), [moves, room.shots]);
   const solo = room.solo === true;
   const myIndex = room.players.findIndex((player) => player.id === profile.id);
@@ -80,7 +80,6 @@ export default function GameScreen({
   const step = (delta: number) =>
     setViewPly((ply) => Math.min(moves.length, Math.max(0, ply + delta)));
 
-  // the whole game written out, one short notation per ply
   const notations = useMemo(() => {
     const list: string[] = [];
     let before = initialState();
@@ -135,6 +134,8 @@ export default function GameScreen({
 
   useEffect(() => {
     if (!scene && !remote.on) return;
+    // the round has to be buffered and unlocked before the trigger, not after
+    primeShot();
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
@@ -158,7 +159,6 @@ export default function GameScreen({
     later(560, () => setScene(null));
   };
 
-  // dragging is a stream of taps: the other player gets a readable trickle
   const moveSight = (x: number, y: number) => {
     setAim({ x, y });
     const now = Date.now();
@@ -175,6 +175,9 @@ export default function GameScreen({
     const square = flipped ? (7 - row) * 8 + (7 - column) : row * 8 + column;
     setScene('fire');
     setHit(square);
+    // the shot is heard on the frame the trigger is pulled, not when the
+    // server answers; the echo only plays it for the other player
+    playShotSound();
     onShoot(square);
     onAim(aim.x, aim.y, false);
     later(1050, () => setScene('back'));
@@ -184,7 +187,6 @@ export default function GameScreen({
     });
   };
 
-  // the other player's board answers a shot with the same flash
   const shots = room.shots?.length ?? 0;
   const seenShots = useRef(shots);
   useEffect(() => {
@@ -195,7 +197,6 @@ export default function GameScreen({
     later(1000, () => setBlast(false));
   }, [shots, scene]);
 
-  // what chess.com puts in the middle of the board when the game is over
   const winner = result === 'checkmate' ? (state.turn === 'w' ? 'black' : 'white') : null;
   const alone = !solo && room.players.length < 2;
   const mySide = myColor === 'w' ? 'white' : 'black';
