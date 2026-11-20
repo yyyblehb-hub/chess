@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { KINDS, type MagicPiece } from '../lib/fairy';
+import MagicLayer from './MagicLayer';
+import { type Flee, type MagicPiece } from '../lib/fairy';
+import { pieceImage } from '../lib/pieces';
 import {
   gameStatus,
   inCheck,
@@ -11,26 +13,6 @@ import {
   type Move,
   type PieceType,
 } from '../lib/chess';
-
-// chess.com classic set, see src/assets/pieces/CREDITS.txt. Every file is a
-// 150x150 PNG on the same baseline and each is under Vite's inline limit, so
-// the board still loads with zero piece requests.
-import wb from '../assets/pieces/wb.png';
-import wk from '../assets/pieces/wk.png';
-import wn from '../assets/pieces/wn.png';
-import wp from '../assets/pieces/wp.png';
-import wq from '../assets/pieces/wq.png';
-import wr from '../assets/pieces/wr.png';
-import bb from '../assets/pieces/bb.png';
-import bk from '../assets/pieces/bk.png';
-import bn from '../assets/pieces/bn.png';
-import bp from '../assets/pieces/bp.png';
-import bq from '../assets/pieces/bq.png';
-import br from '../assets/pieces/br.png';
-
-const PIECES: Record<string, string> = { wb, wk, wn, wp, wq, wr, bb, bk, bn, bp, bq, br };
-
-const pieceImage = (color: Color, type: PieceType) => PIECES[`${color}${type}`];
 
 // chess.com's "Fast" move animation. Their slider runs slow/medium(default)/fast
 // and fast is the quick swipe a phone player expects.
@@ -48,6 +30,8 @@ export default function Board({
   magic,
   magicTargets,
   magicPicked = null,
+  flee,
+  omega = null,
   placing = false,
   onMove,
   onShoot,
@@ -68,6 +52,10 @@ export default function Board({
   magic?: Map<number, MagicPiece>;
   magicTargets?: number[];
   magicPicked?: number | null;
+  /** pieces running off the board right now */
+  flee?: Flee[];
+  /** every piece merged into one king: the board is a monument, not a game */
+  omega?: Color | null;
   /** the deck is armed: the next tap of a square drops a piece there */
   placing?: boolean;
   onMove: (move: Move) => void;
@@ -223,15 +211,6 @@ export default function Board({
             <span className={piece || magicPiece ? 'target capture' : 'target'} aria-hidden="true" />
           )}
           {hit === square && <span className="sniper-ink" aria-hidden="true" />}
-          {magicPiece && (
-            <img
-              className={`magic-art ${magicPiece.side}${magicPiece.kind === 'flowey' ? ' flowey' : ''}`}
-              src={KINDS[magicPiece.kind].art[magicPiece.side]}
-              alt=""
-              draggable={false}
-              aria-hidden="true"
-            />
-          )}
         </button>,
       );
     }
@@ -254,6 +233,8 @@ export default function Board({
         aria-label="Chess board"
       >
         {squares}
+
+        <MagicLayer magic={magic} flee={flee} omega={omega} flip={flip} />
 
         {slide?.pieces.map((piece) => {
           const toColumn = flip ? 7 - (piece.to & 7) : piece.to & 7;
