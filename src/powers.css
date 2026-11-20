@@ -104,41 +104,26 @@
 
 /* ---------- special pieces on the board ---------- */
 
-.magic-token {
+/* the artwork is the Wikimedia fairy set: transparent, one file per colour */
+.magic-art {
   position: absolute;
-  inset: 6%;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  font-size: 4.2vmin;
-  font-weight: 700;
-  line-height: 1;
+  inset: 5%;
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
   pointer-events: none;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.55));
   animation: magic-pop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
 }
 
-.magic-token.w {
-  color: #fff6e6;
-  background: radial-gradient(circle at 35% 30%, #8c6b34, #3a2c14);
-  box-shadow:
-    0 0 0 1px rgba(255, 246, 230, 0.7),
-    0 4px 12px rgba(0, 0, 0, 0.45);
+/* the black-side fairy pieces read as too light on dark squares, so they keep
+   a thin rim: the set's own outline, redrawn underneath */
+.magic-art.b {
+  filter: drop-shadow(0 0 1px rgba(255, 246, 230, 0.55)) drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6));
 }
 
-.magic-token.b {
-  color: #1b1710;
-  background: radial-gradient(circle at 35% 30%, #d8c9a4, #9d8a5f);
-  box-shadow:
-    0 0 0 1px rgba(20, 16, 10, 0.8),
-    0 4px 12px rgba(0, 0, 0, 0.45);
-}
-
-.magic-token.flowey {
-  color: #ffe9a8;
-  background: radial-gradient(circle at 40% 30%, #6a3fa0, #241038);
-  box-shadow:
-    0 0 0 1px rgba(255, 216, 120, 0.8),
-    0 0 18px rgba(255, 196, 64, 0.55);
+.magic-art.flowey {
+  filter: drop-shadow(0 0 6px rgba(196, 128, 255, 0.75)) drop-shadow(0 3px 5px rgba(0, 0, 0, 0.6));
 }
 
 @keyframes magic-pop {
@@ -150,15 +135,6 @@
     opacity: 1;
     transform: scale(1);
   }
-}
-
-.sq.magic-target::after {
-  content: '';
-  position: absolute;
-  inset: 30%;
-  border-radius: 50%;
-  border: 1px solid rgba(201, 168, 106, 0.75);
-  box-shadow: 0 0 10px rgba(201, 168, 106, 0.35);
 }
 
 .sq.magic-picked {
