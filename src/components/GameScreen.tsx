@@ -1,42 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Board from './Board';
 import SniperScene, { type Box } from './SniperScene';
+import PowerPanel from './PowerPanel';
+import ResultCard from './ResultCard';
 import { applyMove, gameResult, initialState, moveNotation, replay, type Color, type Move } from '../lib/chess';
 import { type Profile } from '../lib/profile';
 import { type Room } from '../lib/lobby';
 import { applyShots } from '../lib/shots';
+import { applyEvents, magicMoves, type MagicKind } from '../lib/fairy';
 import { refreshAdmin } from '../lib/admin';
 import { useAim } from '../lib/aim';
 import { playShotSound, primeShot } from '../lib/sound';
 import NameTag from './NameTag';
-
-/* ---------- game ---------- */
-
-/** the medallion at the top of the result card: crown, flag, or a level score */
-function Crest({ verdict }: { verdict: string }) {
-  if (verdict === 'win') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3.5 8.6l4.3 3.2L12 5.2l4.2 6.6 4.3-3.2-1.7 9.1H5.2z" />
-        <path d="M5.2 20h13.6" />
-      </svg>
-    );
-  }
-  if (verdict === 'loss') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M6.5 20.5V3.5" />
-        <path d="M6.5 4.6h10.8l-2.3 4 2.3 4H6.5z" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5.5 9.5h13" />
-      <path d="M5.5 14.5h13" />
-    </svg>
-  );
-}
 
 export default function GameScreen({
   room,
@@ -48,6 +23,8 @@ export default function GameScreen({
   onLeave,
   onShoot,
   onAim,
+  onSpawn,
+  onMagic,
 }: {
   room: Room;
   moves: Move[];
@@ -58,8 +35,12 @@ export default function GameScreen({
   onLeave: () => void;
   onShoot: (square: number) => void;
   onAim: (x: number, y: number, on: boolean) => void;
+  onSpawn: (kind: MagicKind, square: number) => void;
+  onMagic: (from: number, to: number) => void;
 }) {
-  const state = useMemo(() => applyShots(replay(moves), room.shots), [moves, room.shots]);
+  const played = useMemo(() => applyEvents(replay(moves), room.magic), [moves, room.magic]);
+  const state = useMemo(() => applyShots(played.state, room.shots), [played, room.shots]);
+  const magic = played.magic;
   const solo = room.solo === true;
   const myIndex = room.players.findIndex((player) => player.id === profile.id);
   const myColor: Color = myIndex === 1 ? 'b' : 'w';
@@ -67,15 +48,14 @@ export default function GameScreen({
   const result = gameResult(state, moves);
   const over = result !== null;
 
-  // stepping back through the game: 0 is the start, moves.length is the live board
   const [viewPly, setViewPly] = useState(moves.length);
   useEffect(() => {
     setViewPly(moves.length);
   }, [moves.length]);
   const live = viewPly >= moves.length;
   const shown = useMemo(
-    () => applyShots(replay(moves.slice(0, viewPly)), room.shots),
-    [moves, viewPly, room.shots],
+    () => applyShots(applyEvents(replay(moves.slice(0, viewPly)), room.magic).state, room.shots),
+    [moves, viewPly, room.magic, room.shots],
   );
   const step = (delta: number) =>
     setViewPly((ply) => Math.min(moves.length, Math.max(0, ply + delta)));
@@ -98,13 +78,39 @@ export default function GameScreen({
     if (track) track.scrollLeft = track.scrollWidth;
   }, [moves.length, viewPly]);
 
-  /* ---------- the admin dock and the sniper scene ---------- */
+  /* ---------- the admin dock ---------- */
 
   // the server decides who holds the menu; the dock only appears for that account
   const [admin, setAdmin] = useState(false);
   useEffect(() => {
     void refreshAdmin().then(setAdmin);
   }, []);
+
+  const [deck, setDeck] = useState(false);
+  const [placing, setPlacing] = useState<MagicKind | null>(null);
+  const [pick, setPick] = useState<number | null>(null);
+
+  const dropPiece = (square: number) => {
+    if (!placing) return;
+    onSpawn(placing, square);
+    setPlacing(null);
+  };
+
+  const tapMagic = (square: number) => {
+    const held = magic.get(square);
+    if (held) {
+      if (held.side !== myColor) return;
+      setPick((current) => (current === square ? null : square));
+      return;
+    }
+    if (pick === null) return;
+    onMagic(pick, square);
+    setPick(null);
+  };
+
+  const magicTargets = pick === null ? [] : magicMoves(played.state.board, magic, pick, myColor);
+
+  /* ---------- the sniper scene ---------- */
 
   const remote = useAim();
   const [scene, setScene] = useState<'zoom' | 'aim' | 'fire' | 'back' | null>(null);
@@ -134,18 +140,18 @@ export default function GameScreen({
 
   useEffect(() => {
     if (!scene && !remote.on) return;
-    // the round has to be buffered and unlocked before the trigger, not after
     primeShot();
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, [scene, remote.on, measure]);
 
-  // the camera pulls back diagonally, the picture slides in, then the sight arms
   const armSniper = () => {
     if (scene) return;
     clearTimers();
     setBlast(false);
+    setDeck(false);
+    setPlacing(null);
     measure();
     onAim(0.5, 0.5, true);
     setScene('zoom');
@@ -175,8 +181,7 @@ export default function GameScreen({
     const square = flipped ? (7 - row) * 8 + (7 - column) : row * 8 + column;
     setScene('fire');
     setHit(square);
-    // the shot is heard on the frame the trigger is pulled, not when the
-    // server answers; the echo only plays it for the other player
+    // heard on the trigger, not when the server answers
     playShotSound();
     onShoot(square);
     onAim(aim.x, aim.y, false);
@@ -244,7 +249,20 @@ export default function GameScreen({
           </button>
         </div>
 
-        <Board state={shown} myColor={myColor} solo={solo} locked={over || !live} hit={hit} onMove={onMove} />
+        <Board
+          state={shown}
+          myColor={myColor}
+          solo={solo}
+          locked={over || !live}
+          hit={hit}
+          magic={magic}
+          magicTargets={magicTargets}
+          magicPicked={pick}
+          placing={placing !== null}
+          onMove={onMove}
+          onMagicTap={tapMagic}
+          onPlace={dropPiece}
+        />
 
         <div className="pcard">
           <div className="pfp mid">{myFace}</div>
@@ -310,45 +328,50 @@ export default function GameScreen({
               >
                 Sniper shot
               </button>
+              <button
+                type="button"
+                className="admin-act"
+                disabled={scene !== null}
+                onClick={() => {
+                  setDeck((open) => !open);
+                  setPlacing(null);
+                }}
+              >
+                Pieces
+              </button>
             </div>
           </div>
         )}
 
         {over && (
-          <div className={`gameover ${verdict}`}>
-            <div className="gameover-black" aria-hidden="true" />
-            <div className="gameover-glow" aria-hidden="true" />
-            <div className="result-card" role="dialog" aria-modal="true" aria-label="Game over">
-              <span className="result-crest">
-                <Crest verdict={verdict} />
-              </span>
-              <span className="result-kicker">
-                {result === 'checkmate'
-                  ? 'Checkmate'
-                  : result === 'stalemate'
-                    ? 'Stalemate'
-                    : result === 'repetition'
-                      ? 'Draw by repetition'
-                      : 'Insufficient material'}
-              </span>
-              <strong className="result-title">{outcome}</strong>
-              <span className="result-sub">
-                {winner ? `${winner === 'white' ? 'White' : 'Black'} won` : 'Draw'} · {score}
-              </span>
-              <div className="result-actions">
-                {canRematch && (
-                  <button className="btn primary" onClick={onRematch}>
-                    Rematch
-                  </button>
-                )}
-                <button className="btn ghost" onClick={onLeave}>
-                  Find new match
-                </button>
-              </div>
-            </div>
-          </div>
+          <ResultCard
+            result={result ?? ''}
+            verdict={verdict}
+            outcome={outcome}
+            score={score}
+            winner={winner}
+            canRematch={canRematch}
+            onRematch={onRematch}
+            onLeave={onLeave}
+          />
         )}
       </div>
+
+      {admin && deck && (
+        <PowerPanel
+          open={deck}
+          placing={placing}
+          onToggle={() => {
+            setDeck(false);
+            setPlacing(null);
+          }}
+          onPick={(kind) => {
+            setPlacing(kind);
+            setPick(null);
+          }}
+          onCancel={() => setPlacing(null)}
+        />
+      )}
 
       {viewing && (
         <SniperScene
