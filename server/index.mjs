@@ -6,6 +6,7 @@ import express from 'express';
 import { WebSocketServer } from 'ws';
 import { applyMove, gameResult, initialState } from './chess.mjs';
 import { accountCount, authRouter, clientIp, guard, readAppearance, userForToken } from './auth.mjs';
+import { sniper } from './sniper.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -18,7 +19,7 @@ const CODE_LENGTH = 5;
 const TEST_CODE = 'AAA4';
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-/** @type {Map<string, { code: string, mode: string, players: Array<{ id: string, name: string, avatar: string | null, tag: string | null, ws: any }> }>} */
+/** @type {Map<string, any>} */
 const rooms = new Map();
 /** @type {any[]} */
 const queue = [];
@@ -90,6 +91,7 @@ function roomView(room) {
       title: title || null,
     })),
     moves: room.moves,
+    shots: room.shots ?? [],
     turn: room.state.turn,
     solo: room.solo === true,
   };
@@ -124,11 +126,11 @@ function leaveRoom(ws, { notify = true } = {}) {
     return;
   }
 
-  // a finished game keeps its final position: the player still at the table
-  // reads the result instead of watching the game disappear
+  // a finished game keeps its final position for the player still at the table
   const finished = gameResult(room.state, room.moves) !== null;
   if (!finished) {
     room.moves = [];
+    room.shots = [];
     room.state = initialState();
   }
 
@@ -144,7 +146,7 @@ function seatPlayer(ws, player, mode) {
   leaveRoom(ws);
   dropFromQueue(ws);
   const code = makeCode();
-  const room = { code, mode, players: [{ ...player, ws }], moves: [], state: initialState() };
+  const room = { code, mode, players: [{ ...player, ws }], moves: [], shots: [], state: initialState() };
   rooms.set(code, room);
   ws.data.roomCode = code;
   pushRoom(room);
@@ -167,6 +169,7 @@ function tryPair() {
         { ...second.data.player, ws: second },
       ],
       moves: [],
+      shots: [],
       state: initialState(),
     };
     rooms.set(code, room);
@@ -242,7 +245,7 @@ wss.on('connection', (ws, _req, account, ip) => {
       ws.data.player = readPlayer(message, ws.data.account);
     }
 
-    // menu handshake: claim the sign-in (and the title it earns) without seating a player
+    // menu handshake: claim the sign-in and its title without seating a player
     if (message.t === 'hello') {
       send(ws, { t: 'title', title: ws.data.player.title });
       return;
@@ -298,8 +301,7 @@ wss.on('connection', (ws, _req, account, ip) => {
       const room = rooms.get(ws.data.roomCode);
       if (!room || room.players.length < (room.solo ? 1 : CAPACITY)) return;
 
-      // the board shows moves before the server sees them, so a rejected move
-      // comes back as the authoritative snapshot and rolls that square back
+      // a rejected move comes back as the authoritative snapshot
       const resync = () => send(ws, { t: 'room', room: roomView(room) });
 
       const index = room.players.findIndex((player) => player.ws === ws);
@@ -321,7 +323,7 @@ wss.on('connection', (ws, _req, account, ip) => {
       // a finished game stays finished, even if a client keeps sending moves
       if (gameResult(room.state, room.moves) !== null) return resync();
 
-      // the rules live in the shared engine, so a bogus move can never desync the boards
+      // the shared engine decides legality
       const next = applyMove(room.state, from, to, promotion);
       if (!next) return resync();
 
@@ -332,6 +334,11 @@ wss.on('connection', (ws, _req, account, ip) => {
       for (const player of room.players) {
         send(player.ws, { t: 'move', move, turn: next.turn });
       }
+      return;
+    }
+
+    if (message.t === 'shoot') {
+      sniper(ws, message, rooms, send);
       return;
     }
 
@@ -354,11 +361,12 @@ wss.on('connection', (ws, _req, account, ip) => {
       if (!room) return;
       if (room.players.findIndex((player) => player.ws === ws) === -1) return;
 
-      // a finished table can be started again; a live game only in the solo test room
+      // a finished table restarts; a live game only in the solo test room
       if (!room.solo && gameResult(room.state, room.moves) === null) return;
 
       room.state = initialState();
       room.moves = [];
+      room.shots = [];
       pushRoom(room);
       return;
     }
@@ -396,6 +404,7 @@ rooms.set(TEST_CODE, {
   solo: true,
   players: [],
   moves: [],
+  shots: [],
   state: initialState(),
 });
 
