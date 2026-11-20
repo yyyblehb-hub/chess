@@ -355,7 +355,9 @@ wss.on('connection', (ws) => {
       if (!from) return;
       const text = typeof message.text === 'string' ? message.text.trim().slice(0, 300) : '';
       if (!text) return;
-      const payload = { t: 'chat', from: from.name, text };
+      // the sender id lets each client line its own messages up on the right;
+      // the timestamp is what the bubble footer shows
+      const payload = { t: 'chat', id: from.id, from: from.name, text, at: Date.now() };
       for (const player of room.players) send(player.ws, payload);
       return;
     }
