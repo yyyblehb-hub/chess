@@ -123,11 +123,15 @@
   right: -8%;
   bottom: -10%;
   width: min(86vw, 430px);
-  border-radius: 14px;
-  border: 1px solid rgba(201, 168, 106, 0.3);
-  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.66);
+  border-radius: 16px;
+  border: 1px solid rgba(201, 168, 106, 0.32);
+  box-shadow:
+    0 26px 60px rgba(0, 0, 0, 0.66),
+    0 0 0 1px rgba(0, 0, 0, 0.5);
   animation: sniper-in 0.72s cubic-bezier(0.2, 0.8, 0.24, 1) 0.06s both;
   user-select: none;
+  object-fit: cover;
+  filter: saturate(1.02) contrast(1.03);
 }
 
 @keyframes sniper-in {
@@ -152,67 +156,101 @@
   }
 }
 
-/* ---------- the sight: one piece wide, dragging across the board ---------- */
+/* ---------- the drag surface ---------- */
+
+.sniper-drag {
+  position: absolute;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.sniper-drag.live {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+/* ---------- the sight: one piece wide, red glass and a scope ring ---------- */
 
 .sniper-reticle {
   position: absolute;
   transform: translate(-50%, -50%);
-  border-radius: 12%;
-  touch-action: none;
+  pointer-events: none;
+  animation: sight-in 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
-.sniper-reticle.live {
-  cursor: grab;
+@keyframes sight-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
-.sniper-reticle.live:active {
-  cursor: grabbing;
-}
-
-.sniper-cross {
+.sniper-frame {
   position: absolute;
   inset: 0;
-  border: 2px solid #e0362c;
-  border-radius: 12%;
+  border: 1.5px solid rgba(233, 64, 52, 0.92);
+  border-radius: 10%;
+  background: radial-gradient(circle, rgba(233, 64, 52, 0.18), rgba(233, 64, 52, 0.04) 72%);
   box-shadow:
-    0 0 12px rgba(224, 54, 44, 0.7),
-    inset 0 0 14px rgba(224, 54, 44, 0.35);
-  background: rgba(224, 54, 44, 0.1);
+    0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(233, 64, 52, 0.5),
+    inset 0 0 20px rgba(233, 64, 52, 0.28);
+  backdrop-filter: blur(1.2px);
 }
 
-.sniper-cross::before,
-.sniper-cross::after {
-  content: '';
+/* the cross runs a little past the square, like a scope's hairs */
+.sniper-axes {
   position: absolute;
-  background: #e0362c;
-  box-shadow: 0 0 8px rgba(224, 54, 44, 0.8);
+  inset: -12%;
+  background:
+    linear-gradient(rgba(255, 106, 94, 0.75), rgba(255, 106, 94, 0.75)) center top / 1px 101% no-repeat,
+    linear-gradient(rgba(255, 106, 94, 0.75), rgba(255, 106, 94, 0.75)) left center / 101% 1px no-repeat;
+  opacity: 0.7;
 }
 
-.sniper-cross::before {
+.sniper-ring {
+  position: absolute;
+  inset: 19%;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 106, 94, 0.85);
+  box-shadow:
+    0 0 10px rgba(233, 64, 52, 0.55),
+    inset 0 0 10px rgba(233, 64, 52, 0.4);
+}
+
+.sniper-dot {
+  position: absolute;
   left: 50%;
-  top: -22%;
-  width: 1px;
-  height: 144%;
-}
-
-.sniper-cross::after {
   top: 50%;
-  left: -22%;
-  height: 1px;
-  width: 144%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: #ff6a5e;
+  box-shadow: 0 0 8px #e94034;
 }
 
-.sniper-reticle:not(.live) .sniper-cross {
-  animation: sight-pulse 1.6s ease-in-out infinite;
+.sniper-reticle:not(.live) .sniper-frame {
+  animation: sight-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes sight-pulse {
   0%,
   100% {
-    opacity: 0.55;
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.45),
+      0 0 10px rgba(233, 64, 52, 0.35),
+      inset 0 0 16px rgba(233, 64, 52, 0.2);
   }
   50% {
-    opacity: 1;
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.45),
+      0 0 24px rgba(233, 64, 52, 0.65),
+      inset 0 0 22px rgba(233, 64, 52, 0.4);
   }
 }
 
@@ -227,18 +265,20 @@
   justify-items: center;
   gap: 9px;
   pointer-events: none;
-  animation: sniper-veil 0.4s ease-out forwards;
   opacity: 0;
+  animation: sniper-veil 0.4s ease-out forwards;
 }
 
 .sniper-hint {
   margin: 0;
-  padding: 6px 12px;
+  padding: 7px 14px;
   border-radius: 999px;
-  background: rgba(14, 14, 14, 0.72);
-  border: 1px solid rgba(201, 168, 106, 0.32);
-  font-size: 12px;
-  letter-spacing: 0.04em;
+  background: rgba(12, 12, 12, 0.72);
+  border: 1px solid rgba(201, 168, 106, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
   color: #efe6d4;
 }
 
@@ -250,12 +290,16 @@
 .sniper-fire,
 .sniper-cancel {
   pointer-events: auto;
-  font-size: 11px;
-  padding: 6px 14px;
+  font-size: 11.5px;
+  padding: 7px 16px;
+  letter-spacing: 0.06em;
 }
 
 .sniper-fire {
-  border-color: rgba(224, 54, 44, 0.6);
+  background: linear-gradient(180deg, #e94034, #c22a20);
+  border: 1px solid rgba(255, 140, 128, 0.5);
+  color: #fff6f2;
+  box-shadow: 0 8px 22px rgba(233, 64, 52, 0.45);
 }
 
 /* ---------- the impact ---------- */
@@ -293,7 +337,11 @@
     animation: none;
   }
   .sniper-art,
-  .sniper-ink {
+  .sniper-ink,
+  .sniper-reticle {
     animation-duration: 0.01ms !important;
+  }
+  .sniper-reticle:not(.live) .sniper-frame {
+    animation: none;
   }
 }

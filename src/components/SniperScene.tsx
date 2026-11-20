@@ -42,43 +42,56 @@ export default function SniperScene({
       <img className="sniper-art" src={ART} alt="" draggable={false} />
 
       {board && (
-        <div
-          className={`sniper-reticle${interactive ? ' live' : ''}`}
-          style={{
-            left: board.left + reticle.x * board.size,
-            top: board.top + reticle.y * board.size,
-            width: side,
-            height: side,
-          }}
-          onPointerDown={(event) => {
-            if (!interactive) return;
-            dragging.current = true;
-            event.currentTarget.setPointerCapture(event.pointerId);
-            place(event.clientX, event.clientY);
-          }}
-          onPointerMove={(event) => {
-            if (!interactive || !dragging.current) return;
-            place(event.clientX, event.clientY);
-          }}
-          onPointerUp={() => {
-            dragging.current = false;
-          }}
-          onPointerCancel={() => {
-            dragging.current = false;
-          }}
-        >
-          <span className="sniper-cross" aria-hidden="true" />
-        </div>
+        <>
+          {/* the whole board takes the drag, so a finger never has to find the
+              sight before it can be moved */}
+          <div
+            className={`sniper-drag${interactive ? ' live' : ''}`}
+            style={{ left: board.left, top: board.top, width: board.size, height: board.size }}
+            onPointerDown={(event) => {
+              if (!interactive) return;
+              dragging.current = true;
+              event.currentTarget.setPointerCapture(event.pointerId);
+              place(event.clientX, event.clientY);
+            }}
+            onPointerMove={(event) => {
+              if (!interactive || !dragging.current) return;
+              place(event.clientX, event.clientY);
+            }}
+            onPointerUp={() => {
+              dragging.current = false;
+            }}
+            onPointerCancel={() => {
+              dragging.current = false;
+            }}
+          />
+
+          <div
+            className={`sniper-reticle${interactive ? ' live' : ''}`}
+            aria-hidden="true"
+            style={{
+              left: board.left + reticle.x * board.size,
+              top: board.top + reticle.y * board.size,
+              width: side,
+              height: side,
+            }}
+          >
+            <span className="sniper-frame" />
+            <span className="sniper-axes" />
+            <span className="sniper-ring" />
+            <span className="sniper-dot" />
+          </div>
+        </>
       )}
 
       {mode === 'aim' && (
         <div className="sniper-aim">
           <p className="sniper-hint">
-            {interactive ? 'Drag the sight onto a piece, then fire' : 'The sniper is taking aim'}
+            {interactive ? 'Drag the sight over a piece, then fire' : 'The sniper is taking aim'}
           </p>
           {interactive && (
             <div className="sniper-buttons">
-              <button type="button" className="btn primary sniper-fire" onClick={onFire}>
+              <button type="button" className="btn sniper-fire" onClick={onFire}>
                 Fire
               </button>
               <button type="button" className="btn ghost sniper-cancel" onClick={onHold}>
