@@ -10,6 +10,37 @@
   background: #000;
 }
 
+/* sign in / register */
+
+.auth {
+  gap: 14px;
+  padding-top: 34px;
+}
+
+.auth-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.auth-note {
+  margin: -8px 0 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.auth-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(214, 118, 92, 0.35);
+  border-radius: 10px;
+  background: rgba(214, 118, 92, 0.12);
+  color: #efc0b1;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 /* the chat button and its unread count */
 
 .icon {
