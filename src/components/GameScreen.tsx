@@ -3,11 +3,14 @@ import Board from './Board';
 import SniperScene, { type Box } from './SniperScene';
 import PowerPanel from './PowerPanel';
 import ResultCard from './ResultCard';
+import AdminDock from './AdminDock';
+import TrollScare from './TrollScare';
+import MoveStrip from './MoveStrip';
 import { applyMove, gameResult, initialState, moveNotation, replay, type Color, type Move } from '../lib/chess';
 import { type Profile } from '../lib/profile';
 import { type Room } from '../lib/lobby';
 import { applyShots } from '../lib/shots';
-import { applyEvents, magicMoves, type MagicKind } from '../lib/fairy';
+import { applyEvents, fleeList, magicMoves, omegaOf, type Flee, type MagicKind } from '../lib/fairy';
 import { refreshAdmin } from '../lib/admin';
 import { useAim } from '../lib/aim';
 import { playShotSound, primeShot } from '../lib/sound';
@@ -17,35 +20,31 @@ export default function GameScreen({
   room,
   moves,
   profile,
+  send,
   onMove,
   onCopy,
   onRematch,
   onLeave,
-  onShoot,
-  onAim,
-  onSpawn,
-  onMagic,
 }: {
   room: Room;
   moves: Move[];
   profile: Profile;
+  send: (message: object) => void;
   onMove: (move: Move) => void;
   onCopy: () => void;
   onRematch: () => void;
   onLeave: () => void;
-  onShoot: (square: number) => void;
-  onAim: (x: number, y: number, on: boolean) => void;
-  onSpawn: (kind: MagicKind, square: number) => void;
-  onMagic: (from: number, to: number) => void;
 }) {
   const played = useMemo(() => applyEvents(replay(moves), room.magic), [moves, room.magic]);
   const state = useMemo(() => applyShots(played.state, room.shots), [played, room.shots]);
   const magic = played.magic;
+  const omega = omegaOf(room.magic);
   const solo = room.solo === true;
   const myIndex = room.players.findIndex((player) => player.id === profile.id);
   const myColor: Color = myIndex === 1 ? 'b' : 'w';
   const opponent = room.players.find((player) => player.id !== profile.id);
-  const result = gameResult(state, moves);
+  // the merge replaces the engine's verdict: one king, one winner
+  const result = omega ? 'omega' : gameResult(state, moves);
   const over = result !== null;
 
   const [viewPly, setViewPly] = useState(moves.length);
@@ -72,12 +71,6 @@ export default function GameScreen({
     return list;
   }, [moves]);
 
-  const trackRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const track = trackRef.current;
-    if (track) track.scrollLeft = track.scrollWidth;
-  }, [moves.length, viewPly]);
-
   /* ---------- the admin dock ---------- */
 
   // the server decides who holds the menu; the dock only appears for that account
@@ -92,7 +85,7 @@ export default function GameScreen({
 
   const dropPiece = (square: number) => {
     if (!placing) return;
-    onSpawn(placing, square);
+    send({ t: 'spawn', kind: placing, square });
     setPlacing(null);
   };
 
@@ -104,7 +97,7 @@ export default function GameScreen({
       return;
     }
     if (pick === null) return;
-    onMagic(pick, square);
+    send({ t: 'magic', from: pick, to: square });
     setPick(null);
   };
 
@@ -130,6 +123,33 @@ export default function GameScreen({
   };
   useEffect(() => clearTimers, []);
 
+  // a piece that has just fled: play its exit once, then forget it
+  const [fleeing, setFleeing] = useState<Flee[]>([]);
+  const seenFlee = useRef(fleeList(room.magic).length);
+  useEffect(() => {
+    const list = fleeList(room.magic);
+    if (list.length > seenFlee.current) {
+      setFleeing(list.slice(seenFlee.current));
+      later(1050, () => setFleeing([]));
+    }
+    seenFlee.current = list.length;
+  }, [room.magic]);
+
+  // the troll lands on both screens; older scares are not replayed on rejoin
+  const scare = room.scare;
+  const [troll, setTroll] = useState<{ face: number; avatar: string | null } | null>(null);
+  const seenScare = useRef(0);
+  useEffect(() => {
+    if (!scare || scare.at === seenScare.current) return;
+    seenScare.current = scare.at;
+    if (Date.now() - scare.at > 6000) return;
+    playShotSound();
+    const face = room.players.find((player) => player.id === scare.by)?.avatar ?? null;
+    setTroll({ face: scare.face, avatar: face });
+    const timer = window.setTimeout(() => setTroll(null), 1650);
+    return () => window.clearTimeout(timer);
+  }, [scare, room.players]);
+
   // the sight rides on the real board, so its square is measured, not guessed
   const measure = useCallback(() => {
     const board = document.querySelector('.board');
@@ -153,14 +173,14 @@ export default function GameScreen({
     setDeck(false);
     setPlacing(null);
     measure();
-    onAim(0.5, 0.5, true);
+    send({ t: 'aim', x: 0.5, y: 0.5, on: true });
     setScene('zoom');
     later(620, () => setScene('aim'));
   };
 
   const holdFire = () => {
     clearTimers();
-    onAim(aim.x, aim.y, false);
+    send({ t: 'aim', x: aim.x, y: aim.y, on: false });
     setScene('back');
     later(560, () => setScene(null));
   };
@@ -170,7 +190,7 @@ export default function GameScreen({
     const now = Date.now();
     if (now - sentAt.current < 60) return;
     sentAt.current = now;
-    onAim(x, y, true);
+    send({ t: 'aim', x, y, on: true });
   };
 
   const fireAt = () => {
@@ -183,8 +203,8 @@ export default function GameScreen({
     setHit(square);
     // heard on the trigger, not when the server answers
     playShotSound();
-    onShoot(square);
-    onAim(aim.x, aim.y, false);
+    send({ t: 'shoot', square });
+    send({ t: 'aim', x: aim.x, y: aim.y, on: false });
     later(1050, () => setScene('back'));
     later(1650, () => {
       setScene(null);
@@ -202,16 +222,26 @@ export default function GameScreen({
     later(1000, () => setBlast(false));
   }, [shots, scene]);
 
-  const winner = result === 'checkmate' ? (state.turn === 'w' ? 'black' : 'white') : null;
+  const winner = omega
+    ? omega === 'w'
+      ? 'white'
+      : 'black'
+    : result === 'checkmate'
+      ? state.turn === 'w'
+        ? 'black'
+        : 'white'
+      : null;
   const alone = !solo && room.players.length < 2;
   const mySide = myColor === 'w' ? 'white' : 'black';
   const outcome = !winner
     ? 'Draw'
-    : solo || alone
-      ? `${winner === 'white' ? 'White' : 'Black'} won`
-      : winner === mySide
-        ? 'You won'
-        : 'You lost';
+    : omega
+      ? 'Super Omega King'
+      : solo || alone
+        ? `${winner === 'white' ? 'White' : 'Black'} won`
+        : winner === mySide
+          ? 'You won'
+          : 'You lost';
   const score = !winner ? '½-½' : winner === 'white' ? '1-0' : '0-1';
   // solo and abandoned tables have no "you", so they get the quiet treatment
   const verdict = !winner ? 'draw' : solo || alone ? 'neutral' : winner === mySide ? 'win' : 'loss';
@@ -258,6 +288,8 @@ export default function GameScreen({
           magic={magic}
           magicTargets={magicTargets}
           magicPicked={pick}
+          flee={fleeing}
+          omega={omega}
           placing={placing !== null}
           onMove={onMove}
           onMagicTap={tapMagic}
@@ -274,73 +306,26 @@ export default function GameScreen({
           </div>
         </div>
 
-        <div className="nav">
-          <button
-            type="button"
-            className="nav-btn"
-            aria-label="Previous move"
-            disabled={viewPly === 0}
-            onClick={() => step(-1)}
-          >
-            ‹
-          </button>
-          <div
-            className="nav-track"
-            ref={trackRef}
-            role="button"
-            tabIndex={0}
-            aria-label={live ? 'Moves played' : 'Back to the live position'}
-            onClick={() => setViewPly(moves.length)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') setViewPly(moves.length);
-            }}
-          >
-            {notations.map((san, index) => (
-              <span
-                key={index}
-                className={`nav-move${index < viewPly ? ' played' : ''}${index === viewPly - 1 ? ' now' : ''}`}
-              >
-                {san}
-              </span>
-            ))}
-          </div>
-          <button
-            type="button"
-            className="nav-btn"
-            aria-label="Next move"
-            disabled={live}
-            onClick={() => step(1)}
-          >
-            ›
-          </button>
-        </div>
+        <MoveStrip
+          notations={notations}
+          viewPly={viewPly}
+          live={live}
+          count={moves.length}
+          onJump={() => setViewPly(moves.length)}
+          onStep={step}
+        />
 
         {admin && (
-          <div className="admin-dock">
-            <span className="admin-dock-head">Admin</span>
-            <div className="admin-row">
-              <span className="admin-cat">Turns</span>
-              <button
-                type="button"
-                className="admin-act"
-                disabled={scene !== null || over}
-                onClick={armSniper}
-              >
-                Sniper shot
-              </button>
-              <button
-                type="button"
-                className="admin-act"
-                disabled={scene !== null}
-                onClick={() => {
-                  setDeck((open) => !open);
-                  setPlacing(null);
-                }}
-              >
-                Pieces
-              </button>
-            </div>
-          </div>
+          <AdminDock
+            sniperOff={scene !== null || over}
+            deckOpen={deck}
+            placing={placing !== null}
+            onSniper={armSniper}
+            onDeck={() => {
+              setDeck((open) => !open);
+              setPlacing(null);
+            }}
+          />
         )}
 
         {over && (
@@ -359,7 +344,6 @@ export default function GameScreen({
 
       {admin && deck && (
         <PowerPanel
-          open={deck}
           placing={placing}
           onToggle={() => {
             setDeck(false);
@@ -368,10 +352,16 @@ export default function GameScreen({
           onPick={(kind) => {
             setPlacing(kind);
             setPick(null);
+            setDeck(false);
           }}
           onCancel={() => setPlacing(null)}
+          onTurn={(kind) => send({ t: 'turn', kind })}
+          onScare={(face) => send({ t: 'scare', face })}
+          onOmega={() => send({ t: 'omega' })}
         />
       )}
+
+      {troll && <TrollScare face={troll.face} avatar={troll.avatar} />}
 
       {viewing && (
         <SniperScene

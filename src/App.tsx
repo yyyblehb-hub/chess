@@ -333,14 +333,11 @@ export default function App() {
             room={room}
             moves={moves}
             profile={profile}
+            send={send}
             onMove={queueMove}
             onCopy={() => void copyCode()}
             onRematch={() => send({ t: 'rematch' })}
             onLeave={newMatch}
-            onShoot={(square) => send({ t: 'shoot', square })}
-            onAim={(x, y, on) => send({ t: 'aim', x, y, on })}
-            onSpawn={(kind, square) => send({ t: 'spawn', kind, square })}
-            onMagic={(from, to) => send({ t: 'magic', from, to })}
           />
         )}
 
