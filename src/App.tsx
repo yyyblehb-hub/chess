@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Board from './components/Board';
 import { gameStatus, replay, type Color, type Move } from './lib/chess';
 import { useLobby, type Player, type Room, type ServerMessage } from './lib/lobby';
-import { clearProfile, fileToAvatar, loadId, loadProfile, saveProfile, type Profile } from './lib/profile';
+import { clearProfile, fileToAvatar, fileToTag, loadId, loadProfile, saveProfile, type Profile } from './lib/profile';
 import { playMoveSound } from './lib/sound';
 
-type Screen = 'identity' | 'menu' | 'join' | 'search' | 'room';
+type Screen = 'identity' | 'menu' | 'settings' | 'join' | 'search' | 'room';
 
 /* ---------- icons ---------- */
 
@@ -39,6 +39,19 @@ const BackIcon = () => (
   </svg>
 );
 
+const ChatIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M20 12.5a6.8 6.8 0 0 1-7.5 6.8 8.6 8.6 0 0 1-2.6-.6L5.5 20l.9-3.2A6.6 6.6 0 0 1 4.5 12.5 6.8 6.8 0 0 1 12 5.7a6.8 6.8 0 0 1 8 6.8Z" />
+  </svg>
+);
+
+const SettingsIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="3.2" />
+    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H2.9a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.4-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1A1.7 1.7 0 0 0 10.1 3V2.9a2 2 0 1 1 4 0V3a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1Z" />
+  </svg>
+);
+
 /* ---------- fullscreen ---------- */
 
 type FullscreenDocument = Document & {
@@ -65,10 +78,10 @@ async function toggleFullscreen() {
   }
 }
 
-/* ---------- title tag ---------- */
+/* ---------- picture tag ---------- */
 
-function Tag({ title }: { title?: string | null }) {
-  return title ? <span className="tag">{title}</span> : null;
+function NameTag({ tag }: { tag?: string | null }) {
+  return tag ? <img className="tag" src={tag} alt="" /> : null;
 }
 
 /* ---------- player row ---------- */
@@ -82,7 +95,7 @@ function PlayerRow({ player, you }: { player?: Player; you: string }) {
       <span className="row-name">
         {player ? (
           <>
-            <Tag title={player.title} />
+            <NameTag tag={player.tag} />
             {player.id === you ? `${player.name} (you)` : player.name}
           </>
         ) : (
@@ -125,7 +138,13 @@ function IdentityScreen({
 
   const submit = () => {
     if (!ready) return;
-    onSubmit({ id: idRef.current, name: trimmed, avatar });
+    onSubmit({
+      id: idRef.current,
+      name: trimmed,
+      avatar,
+      tag: initial?.tag ?? null,
+      title: initial?.title ?? null,
+    });
   };
 
   return (
@@ -208,7 +227,7 @@ function MenuScreen({
           {profile.avatar ? <img src={profile.avatar} alt="" /> : profile.name.slice(0, 1).toUpperCase()}
         </div>
         <span className="me-name">
-          <Tag title={profile.title} />
+          <NameTag tag={profile.tag} />
           {profile.name}
         </span>
         <button className="link" onClick={onEdit}>
@@ -351,8 +370,8 @@ function GameScreen({
 
   const opponentName = solo ? profile.name : (opponent?.name ?? 'opponent');
   const myName = profile.name;
-  const myTitle = room.players[myIndex]?.title ?? profile.title ?? null;
-  const opponentTitle = solo ? myTitle : (opponent?.title ?? null);
+  const myTag = room.players[myIndex]?.tag ?? profile.tag ?? null;
+  const opponentTag = solo ? myTag : (opponent?.tag ?? null);
   const opponentAvatar = solo ? profile.avatar : (opponent?.avatar ?? null);
   const opponentFace = opponentAvatar ? (
     <img src={opponentAvatar} alt="" />
@@ -367,7 +386,7 @@ function GameScreen({
         <div className="pfp mid">{opponentFace}</div>
         <div className="meta">
           <strong>
-            <Tag title={opponentTitle} />
+            <NameTag tag={opponentTag} />
             {opponentName}
           </strong>
           <span>{solo ? 'you · black' : 'opponent'}</span>
@@ -383,7 +402,7 @@ function GameScreen({
         <div className="pfp mid">{myFace}</div>
         <div className="meta">
           <strong>
-            <Tag title={myTitle} />
+            <NameTag tag={myTag} />
             {myName}
           </strong>
           <span className={over ? 'over' : undefined}>{label}</span>
@@ -455,6 +474,143 @@ function RoomScreen({
   );
 }
 
+type ChatLine = { from: string; text: string };
+
+/* ---------- chat ---------- */
+
+function ChatPanel({
+  lines,
+  onSend,
+  onClose,
+}: {
+  lines: ChatLine[];
+  onSend: (text: string) => void;
+  onClose: () => void;
+}) {
+  const [text, setText] = useState('');
+  const logRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const log = logRef.current;
+    if (log) log.scrollTop = log.scrollHeight;
+  }, [lines.length]);
+
+  const submit = () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    onSend(trimmed);
+    setText('');
+  };
+
+  return (
+    <div className="chat">
+      <div className="chat-head">
+        <span className="label">Chat</span>
+        <button type="button" className="link" onClick={onClose}>
+          Close
+        </button>
+      </div>
+      <div className="chat-log" ref={logRef}>
+        {lines.length === 0 ? (
+          <p className="muted">Say something...</p>
+        ) : (
+          lines.map((line, index) => (
+            <p key={index} className="chat-line">
+              <strong>{line.from}</strong>
+              {line.text}
+            </p>
+          ))
+        )}
+      </div>
+      <form
+        className="chat-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        <input
+          className="field"
+          value={text}
+          maxLength={300}
+          placeholder="Message"
+          autoComplete="off"
+          onChange={(event) => setText(event.target.value)}
+        />
+        <button className="btn primary" type="submit" disabled={!text.trim()}>
+          Send
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/* ---------- settings ---------- */
+
+function SettingsScreen({
+  profile,
+  onChange,
+}: {
+  profile: Profile;
+  onChange: (next: Profile) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const pickTag = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      onChange({ ...profile, tag: await fileToTag(file) });
+    } catch {
+      /* unsupported image — keep the tag that is already there */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="screen">
+      <div className="setup">
+        <button
+          type="button"
+          className="pfp"
+          onClick={() => fileRef.current?.click()}
+          aria-label="Choose a tag picture"
+        >
+          {profile.tag ? <img src={profile.tag} alt="" /> : <span>{busy ? '' : '+'}</span>}
+        </button>
+        <div className="setup-field">
+          <span className="label">Tag</span>
+          <p className="me-name">
+            <NameTag tag={profile.tag} />
+            {profile.name}
+          </p>
+        </div>
+      </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(event) => {
+          void pickTag(event.target.files?.[0]);
+          event.target.value = '';
+        }}
+      />
+
+      {profile.tag && (
+        <button type="button" className="link" onClick={() => onChange({ ...profile, tag: null })}>
+          Remove picture
+        </button>
+      )}
+
+      <p className="muted push">The picture sits next to your name at emoji size, in tables and games.</p>
+    </div>
+  );
+}
+
 /* ---------- app ---------- */
 
 export default function App() {
@@ -466,6 +622,8 @@ export default function App() {
   const [joinBusy, setJoinBusy] = useState(false);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const [musicOn, setMusicOn] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chat, setChat] = useState<ChatLine[]>([]);
 
   const roomRef = useRef<Room | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -481,6 +639,10 @@ export default function App() {
       switch (message.t) {
         case 'room':
           pendingMoves.current = [];
+          if (roomRef.current?.code !== message.room.code) {
+            setChat([]);
+            setChatOpen(false);
+          }
           setRoom(message.room);
           setMoves(message.room.moves ?? []);
           setJoinBusy(false);
@@ -511,6 +673,9 @@ export default function App() {
             return next;
           });
           break;
+        case 'chat':
+          setChat((current) => [...current, { from: message.from, text: message.text }]);
+          break;
         case 'notice':
           notify(message.message);
           break;
@@ -522,6 +687,7 @@ export default function App() {
         case 'left':
           setRoom(null);
           setMoves([]);
+          setChatOpen(false);
           break;
         default:
           break;
@@ -539,7 +705,7 @@ export default function App() {
   useEffect(() => {
     const current = profileRef.current;
     if (!connected || !current) return;
-    send({ t: 'hello', id: current.id, name: current.name, avatar: current.avatar });
+    send({ t: 'hello', id: current.id, name: current.name, avatar: current.avatar, tag: current.tag ?? null });
   }, [connected, profile?.id, send]);
 
   // Land the move on the frame it is tapped. The server echo only confirms it;
@@ -674,10 +840,17 @@ export default function App() {
     setScreen('menu');
   };
 
+  const saveTag = (next: Profile) => {
+    setProfile(next);
+    saveProfile(next);
+  };
+
   const resign = () => {
     send({ t: 'leave' });
     setRoom(null);
     setJoinBusy(false);
+    setChatOpen(false);
+    setChat([]);
     clearProfile();
     setProfile(null);
     setScreen('identity');
@@ -688,27 +861,33 @@ export default function App() {
     setRoom(null);
     setMoves([]);
     setJoinBusy(false);
+    setChatOpen(false);
+    setChat([]);
     setScreen('menu');
+  };
+
+  const sendChat = (text: string) => {
+    send({ t: 'chat', text });
   };
 
   const startFind = () => {
     if (!profile) return;
     setRoom(null);
     setScreen('search');
-    send({ t: 'find', id: profile.id, name: profile.name, avatar: profile.avatar });
+    send({ t: 'find', id: profile.id, name: profile.name, avatar: profile.avatar, tag: profile.tag ?? null });
   };
 
   const startCreate = () => {
     if (!profile) return;
     setRoom(null);
     setScreen('room');
-    send({ t: 'create', id: profile.id, name: profile.name, avatar: profile.avatar });
+    send({ t: 'create', id: profile.id, name: profile.name, avatar: profile.avatar, tag: profile.tag ?? null });
   };
 
   const submitJoin = (code: string) => {
     if (!profile) return;
     setJoinBusy(true);
-    send({ t: 'join', code, id: profile.id, name: profile.name, avatar: profile.avatar });
+    send({ t: 'join', code, id: profile.id, name: profile.name, avatar: profile.avatar, tag: profile.tag ?? null });
   };
 
   const copyCode = async () => {
@@ -739,6 +918,20 @@ export default function App() {
             <span className="logo">Chess</span>
           )}
           <span className="grow" />
+          {inGame && room?.solo !== true && (
+            <button
+              className={`icon${chatOpen ? ' active' : ''}`}
+              aria-label={chatOpen ? 'Close chat' : 'Open chat'}
+              onClick={() => setChatOpen((open) => !open)}
+            >
+              <ChatIcon />
+            </button>
+          )}
+          {screen === 'menu' && (
+            <button className="icon" aria-label="Settings" onClick={() => setScreen('settings')}>
+              <SettingsIcon />
+            </button>
+          )}
           <button
             className={`icon${musicOn ? ' active' : ''}`}
             aria-label={musicOn ? 'Pause music' : 'Play music'}
@@ -764,6 +957,8 @@ export default function App() {
           />
         )}
 
+        {screen === 'settings' && profile && <SettingsScreen profile={profile} onChange={saveTag} />}
+
         {screen === 'join' && <JoinScreen busy={joinBusy} onJoin={submitJoin} />}
 
         {screen === 'search' && <SearchScreen onCancel={leaveTable} />}
@@ -781,6 +976,10 @@ export default function App() {
 
         {screen === 'room' && !inGame && (
           <RoomScreen room={room} you={profile?.id ?? ''} onCopy={() => void copyCode()} onLeave={leaveTable} />
+        )}
+
+        {inGame && chatOpen && room?.solo !== true && (
+          <ChatPanel lines={chat} onSend={sendChat} onClose={() => setChatOpen(false)} />
         )}
       </div>
 
