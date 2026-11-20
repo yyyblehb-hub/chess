@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import compression from 'compression';
 import express from 'express';
 import { WebSocketServer } from 'ws';
-import { applyMove, gameStatus, initialState } from './chess.mjs';
+import { applyMove, gameResult, initialState } from './chess.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -173,8 +173,7 @@ function leaveRoom(ws, { notify = true } = {}) {
 
   // a finished game keeps its final position: the player still at the table
   // reads the result instead of watching the game disappear
-  const status = gameStatus(room.state);
-  const finished = status === 'checkmate' || status === 'stalemate';
+  const finished = gameResult(room.state, room.moves) !== null;
   if (!finished) {
     room.moves = [];
     room.state = initialState();
@@ -332,6 +331,9 @@ wss.on('connection', (ws) => {
       const requested = message.move?.promotion;
       const promotion = ['q', 'r', 'b', 'n'].includes(requested) ? requested : undefined;
 
+      // a finished game stays finished, even if a client keeps sending moves
+      if (gameResult(room.state, room.moves) !== null) return resync();
+
       // the rules live in the shared engine, so a bogus move can never desync the boards
       const next = applyMove(room.state, from, to, promotion);
       if (!next) return resync();
@@ -364,10 +366,7 @@ wss.on('connection', (ws) => {
       if (room.players.findIndex((player) => player.ws === ws) === -1) return;
 
       // a finished table can be started again; a live game only in the solo test room
-      if (!room.solo) {
-        const status = gameStatus(room.state);
-        if (status !== 'checkmate' && status !== 'stalemate') return;
-      }
+      if (!room.solo && gameResult(room.state, room.moves) === null) return;
 
       room.state = initialState();
       room.moves = [];
