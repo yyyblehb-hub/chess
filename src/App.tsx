@@ -101,6 +101,10 @@ export default function App() {
           ]);
           if (panelRef.current !== 'chat') setUnread((count) => count + 1);
           break;
+        case 'shoot':
+          // the emptied square rides with the room, so a review shows it too
+          setRoom((current) => (current ? { ...current, shots: message.shots } : current));
+          break;
         case 'notice':
           notify(message.message);
           break;
@@ -173,8 +177,7 @@ export default function App() {
 
   const { audioRef, musicOn, startMusic, toggleMusic, pickTrack } = useMusic(track, inGame);
 
-  // The board artwork is the one image the board waits for: fetch it while the
-  // player is still in the menu so the board paints from cache.
+  // fetch the board artwork during the menu so the board paints from cache
   useEffect(() => {
     const image = new Image();
     image.src = '/assets/board-wood.jpg';
@@ -335,6 +338,7 @@ export default function App() {
             onCopy={() => void copyCode()}
             onRematch={() => send({ t: 'rematch' })}
             onLeave={newMatch}
+            onShoot={(square) => send({ t: 'shoot', square })}
           />
         )}
 
