@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { KINDS, type MagicPiece } from '../lib/fairy';
 import {
   gameStatus,
   inCheck,
@@ -44,8 +45,14 @@ export default function Board({
   locked = false,
   targeting = false,
   hit = null,
+  magic,
+  magicTargets,
+  magicPicked = null,
+  placing = false,
   onMove,
   onShoot,
+  onMagicTap,
+  onPlace,
 }: {
   state: GameState;
   myColor: Color;
@@ -57,8 +64,16 @@ export default function Board({
   targeting?: boolean;
   /** the square that was just shot, drawn as an impact ring */
   hit?: number | null;
+  /** the admin's special pieces, by square */
+  magic?: Map<number, MagicPiece>;
+  magicTargets?: number[];
+  magicPicked?: number | null;
+  /** the deck is armed: the next tap of a square drops a piece there */
+  placing?: boolean;
   onMove: (move: Move) => void;
   onShoot?: (square: number) => void;
+  onMagicTap?: (square: number) => void;
+  onPlace?: (square: number) => void;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [promotion, setPromotion] = useState<{ from: number; to: number } | null>(null);
@@ -126,6 +141,14 @@ export default function Board({
   );
 
   const choose = (square: number) => {
+    if (placing) {
+      if (!state.board[square] && onPlace) onPlace(square);
+      return;
+    }
+    if (magic && (magic.has(square) || (magicTargets ?? []).includes(square))) {
+      if (onMagicTap) onMagicTap(square);
+      return;
+    }
     if (targeting) {
       if (state.board[square] && onShoot) onShoot(square);
       return;
@@ -164,6 +187,8 @@ export default function Board({
       if (state.last && (state.last.from === square || state.last.to === square)) classes.push('last');
       if (checkedKing === square) classes.push('check');
       if (targeting && piece) classes.push('arm');
+      if ((magicTargets ?? []).includes(square)) classes.push('magic-target');
+      if (magicPicked === square) classes.push('magic-picked');
 
       squares.push(
         <button
@@ -194,6 +219,14 @@ export default function Board({
           )}
           {isTarget && <span className={piece ? 'target capture' : 'target'} aria-hidden="true" />}
           {hit === square && <span className="sniper-ink" aria-hidden="true" />}
+          {magic?.get(square) && (
+            <span
+              className={`magic-token ${magic.get(square)!.side}${magic.get(square)!.kind === 'flowey' ? ' flowey' : ''}`}
+              aria-hidden="true"
+            >
+              {KINDS[magic.get(square)!.kind].glyph}
+            </span>
+          )}
         </button>,
       );
     }
@@ -211,7 +244,7 @@ export default function Board({
   return (
     <div className="board-wrap">
       <div
-        className={`board${status === 'checkmate' || status === 'stalemate' ? ' over' : ''}${targeting ? ' targeting' : ''}`}
+        className={`board${status === 'checkmate' || status === 'stalemate' ? ' over' : ''}${targeting ? ' targeting' : ''}${placing ? ' placing' : ''}`}
         role="grid"
         aria-label="Chess board"
       >
