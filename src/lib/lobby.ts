@@ -34,23 +34,33 @@ type Handlers = (message: ServerMessage) => void;
 /**
  * Keeps one websocket to the lobby server and reconnects if it drops.
  * Messages sent while offline are queued and flushed on the next open.
+ * The socket carries the session token: without one the server closes it.
  */
-export function useLobby(onMessage: Handlers) {
+export function useLobby(onMessage: Handlers, token: string | null, onAuthLost?: () => void) {
   const socketRef = useRef<WebSocket | null>(null);
   const pendingRef = useRef<string[]>([]);
   const handlerRef = useRef(onMessage);
+  const lostRef = useRef(onAuthLost);
   const [connected, setConnected] = useState(false);
 
   handlerRef.current = onMessage;
+  lostRef.current = onAuthLost;
 
   useEffect(() => {
+    // no session, no socket: the server refuses unauthenticated upgrades
+    if (!token) {
+      setConnected(false);
+      return;
+    }
     let disposed = false;
     let retries = 0;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     const connect = () => {
       const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
+      const socket = new WebSocket(
+        `${protocol}://${window.location.host}/ws?token=${encodeURIComponent(token)}`,
+      );
       socketRef.current = socket;
 
       socket.onopen = () => {
@@ -69,8 +79,13 @@ export function useLobby(onMessage: Handlers) {
         }
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         setConnected(false);
+        // 4401 means the session died (restart or sign-out): stop retrying
+        if (event.code === 4401) {
+          lostRef.current?.();
+          return;
+        }
         if (!disposed) {
           retryTimer = setTimeout(connect, Math.min(4000, 400 * 2 ** retries));
           retries += 1;
@@ -96,7 +111,7 @@ export function useLobby(onMessage: Handlers) {
       if (retryTimer) clearTimeout(retryTimer);
       socketRef.current?.close();
     };
-  }, []);
+  }, [token]);
 
   const send = useCallback((message: object) => {
     const raw = JSON.stringify(message);
