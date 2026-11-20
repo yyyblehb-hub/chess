@@ -363,6 +363,77 @@ export function gameStatus(state: GameState): Status {
   return checked ? 'check' : 'playing';
 }
 
+export type DrawReason = 'stalemate' | 'insufficient' | 'repetition';
+export type GameResult = 'checkmate' | DrawReason | null;
+
+/** What makes two positions the same for repetition: pieces, side to move, castling and en passant. */
+export function positionKey(state: GameState): string {
+  let key = '';
+  for (const piece of state.board) {
+    key += piece ? (piece.color === 'w' ? piece.type.toUpperCase() : piece.type) : '.';
+  }
+  return `${key} ${state.turn} ${state.castling || '-'} ${state.ep ?? '-'}`;
+}
+
+/**
+ * Neither side can force mate: king vs king, or king and a single minor piece
+ * vs king (plus the dead king + bishop vs king + bishop on one colour).
+ */
+export function insufficientMaterial(state: GameState): boolean {
+  const minors: Record<Color, number[]> = { w: [], b: [] };
+  for (let square = 0; square < 64; square += 1) {
+    const piece = state.board[square];
+    if (!piece || piece.type === 'k') continue;
+    if (piece.type !== 'b' && piece.type !== 'n') return false;
+    minors[piece.color].push(square);
+  }
+
+  const white = minors.w;
+  const black = minors.b;
+  if (white.length === 0 && black.length === 0) return true;
+  if (white.length + black.length === 1) return true;
+  if (white.length === 1 && black.length === 1) {
+    const squareColor = (square: number) => (fileOf(square) + rankOf(square)) % 2;
+    return (
+      state.board[white[0]]?.type === 'b' &&
+      state.board[black[0]]?.type === 'b' &&
+      squareColor(white[0]) === squareColor(black[0])
+    );
+  }
+  return false;
+}
+
+/** The same position three times, with the same side to move and the same rights. */
+export function threefoldRepetition(moves: Move[]): boolean {
+  let state = initialState();
+  const seen = new Map<string, number>();
+  const count = (position: GameState) => {
+    const key = positionKey(position);
+    const total = (seen.get(key) ?? 0) + 1;
+    seen.set(key, total);
+    return total;
+  };
+
+  count(state);
+  for (const move of moves) {
+    const next = applyMove(state, move.from, move.to, move.promotion);
+    if (!next) break;
+    state = next;
+    if (count(state) >= 3) return true;
+  }
+  return false;
+}
+
+/** How a finished game ended, the way chess.com names it; null while it is still on. */
+export function gameResult(state: GameState, moves: Move[]): GameResult {
+  const status = gameStatus(state);
+  if (status === 'checkmate') return 'checkmate';
+  if (status === 'stalemate') return 'stalemate';
+  if (insufficientMaterial(state)) return 'insufficient';
+  if (threefoldRepetition(moves)) return 'repetition';
+  return null;
+}
+
 /** Rebuilds the position from the move list the server keeps for the room. */
 export function replay(moves: Move[]): GameState {
   let state = initialState();
