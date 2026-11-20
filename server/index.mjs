@@ -59,7 +59,7 @@ function titleFor(id) {
   return signIns[0] === id ? 'GM' : null;
 }
 
-/** @type {Map<string, { code: string, mode: string, players: Array<{ id: string, name: string, avatar: string | null, ws: any }> }>} */
+/** @type {Map<string, { code: string, mode: string, players: Array<{ id: string, name: string, avatar: string | null, tag: string | null, ws: any }> }>} */
 const rooms = new Map();
 /** @type {any[]} */
 const queue = [];
@@ -116,8 +116,12 @@ function readPlayer(data) {
     data.avatar.length < 120_000
       ? data.avatar
       : null;
+  const tag =
+    typeof data?.tag === 'string' && data.tag.startsWith('data:image/') && data.tag.length < 120_000
+      ? data.tag
+      : null;
   const id = typeof data?.id === 'string' ? data.id.slice(0, 64) : '';
-  return { id, name: name || 'Player', avatar, title: titleFor(id) };
+  return { id, name: name || 'Player', avatar, tag, title: titleFor(id) };
 }
 
 function roomView(room) {
@@ -125,7 +129,13 @@ function roomView(room) {
     code: room.code,
     mode: room.mode,
     capacity: room.solo ? 1 : CAPACITY,
-    players: room.players.map(({ id, name, avatar, title }) => ({ id, name, avatar, title: title || null })),
+    players: room.players.map(({ id, name, avatar, tag, title }) => ({
+      id,
+      name,
+      avatar,
+      tag: tag || null,
+      title: title || null,
+    })),
     moves: room.moves,
     turn: room.state.turn,
     solo: room.solo === true,
@@ -221,7 +231,11 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 wss.on('connection', (ws) => {
-  ws.data = { roomCode: null, searching: false, player: { id: '', name: 'Player', avatar: null, title: null } };
+  ws.data = {
+    roomCode: null,
+    searching: false,
+    player: { id: '', name: 'Player', avatar: null, tag: null, title: null },
+  };
   ws.isAlive = true;
   ws.on('pong', () => {
     ws.isAlive = true;
