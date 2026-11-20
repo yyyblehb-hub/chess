@@ -26,6 +26,7 @@ export type ServerMessage =
   | { t: 'room'; room: Room }
   | { t: 'move'; move: Move; turn: Color }
   | { t: 'shoot'; square: number; shots: number[] }
+  | { t: 'aim'; on: boolean; x: number; y: number }
   | { t: 'searching' }
   | { t: 'left' }
   | { t: 'title'; title: string | null }

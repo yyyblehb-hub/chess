@@ -27,12 +27,35 @@ function noise(ctx: AudioContext): AudioBuffer {
   if (noiseBuffer) return noiseBuffer;
   const length = Math.floor(ctx.sampleRate * 0.05);
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
+  const data = ctx.getChannelData(0);
   for (let i = 0; i < length; i += 1) {
     data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 2;
   }
   noiseBuffer = buffer;
   return buffer;
+}
+
+/**
+ * The sniper round, from myinstants. It is streamed from their CDN because the
+ * file is far larger than the repository upload path can carry; both players
+ * hear it, since both get the shot frame.
+ */
+const SHOT_URL = 'https://www.myinstants.com/media/sounds/sniper-shot.mp3';
+
+let shot: HTMLAudioElement | null = null;
+
+export function playShotSound() {
+  if (!shot) {
+    shot = new Audio(SHOT_URL);
+    shot.preload = 'auto';
+    shot.volume = 0.65;
+  }
+  try {
+    shot.currentTime = 0;
+  } catch {
+    /* not seekable yet; play() restarts it anyway */
+  }
+  void shot.play().catch(() => undefined);
 }
 
 export function playMoveSound(capture = false) {
