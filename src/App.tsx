@@ -8,13 +8,10 @@ import {
   fileToTag,
   loadId,
   loadProfile,
-  loadTheme,
   loadTrack,
   saveProfile,
-  saveTheme,
   saveTrack,
   type Profile,
-  type ThemeId,
   type TrackId,
 } from './lib/profile';
 import { playMoveSound } from './lib/sound';
@@ -555,15 +552,6 @@ function ChatPanel({
   );
 }
 
-const THEMES: { id: ThemeId; label: string }[] = [
-  { id: 'wood', label: 'wood' },
-  { id: 'black', label: 'black' },
-  { id: 'gray', label: 'gray' },
-  { id: 'pink', label: 'pink' },
-  { id: 'blue', label: 'blue' },
-  { id: 'checker', label: 'board' },
-];
-
 const TRACKS: { id: TrackId; name: string; by?: string; src: string }[] = [
   { id: 'beta', name: 'a simple beta song', src: '/assets/chess.m4a' },
   { id: 'diversion', name: 'a simple diversion', src: '/assets/simple-diversion.mp3' },
@@ -584,17 +572,13 @@ function trackSource(track: TrackId): string {
 
 function SettingsScreen({
   profile,
-  theme,
   track,
   onChange,
-  onTheme,
   onTrack,
 }: {
   profile: Profile;
-  theme: ThemeId;
   track: TrackId;
   onChange: (next: Profile) => void;
-  onTheme: (theme: ThemeId) => void;
   onTrack: (track: TrackId) => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -650,25 +634,6 @@ function SettingsScreen({
       )}
 
       <div className="setup-field">
-        <span className="label">Design</span>
-        <div className="themes">
-          {THEMES.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`theme${theme === item.id ? ' sel' : ''}`}
-              aria-label={`${item.label} design`}
-              aria-pressed={theme === item.id}
-              onClick={() => onTheme(item.id)}
-            >
-              <span className={`swatch ${item.id}`} />
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="setup-field">
         <span className="label">Music</span>
         <div className="tracks">
           {TRACKS.map((item) => (
@@ -704,7 +669,6 @@ export default function App() {
   const [musicOn, setMusicOn] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chat, setChat] = useState<ChatLine[]>([]);
-  const [theme, setTheme] = useState<ThemeId>(loadTheme());
   const [track, setTrack] = useState<TrackId>(loadTrack());
   const trackSrc = trackSource(track);
 
@@ -950,11 +914,6 @@ export default function App() {
     saveProfile(next);
   };
 
-  const pickTheme = (next: ThemeId) => {
-    setTheme(next);
-    saveTheme(next);
-  };
-
   const pickTrack = (next: TrackId) => {
     setTrack(next);
     saveTrack(next);
@@ -1029,7 +988,7 @@ export default function App() {
   const canGoBack = screen !== 'identity' && screen !== 'menu';
 
   return (
-    <div className={`app${theme === 'wood' ? '' : ` theme-${theme}`}${inGame ? ' in-game' : ''}`}>
+    <div className={`app${inGame ? ' in-game' : ''}`}>
       <div className="shell">
         <header className="bar">
           {canGoBack ? (
@@ -1080,14 +1039,7 @@ export default function App() {
         )}
 
         {screen === 'settings' && profile && (
-          <SettingsScreen
-            profile={profile}
-            theme={theme}
-            track={track}
-            onChange={saveTag}
-            onTheme={pickTheme}
-            onTrack={pickTrack}
-          />
+          <SettingsScreen profile={profile} track={track} onChange={saveTag} onTrack={pickTrack} />
         )}
 
         {screen === 'join' && <JoinScreen busy={joinBusy} onJoin={submitJoin} />}
