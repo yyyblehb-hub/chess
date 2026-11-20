@@ -244,6 +244,11 @@ export function adminHolder() {
   return adminRecord ? { id: adminRecord.id, name: adminRecord.name } : null;
 }
 
+/** the socket asks this before it lets an admin power fire */
+export function adminForUser(user) {
+  return holdsAdmin(user);
+}
+
 function holdsAdmin(user) {
   return Boolean(adminRecord && user && adminRecord.id === user.id);
 }
