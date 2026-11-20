@@ -75,7 +75,7 @@
   }
 }
 
-/* ---------- the second board ---------- */
+/* ---------- the scene ---------- */
 
 .sniper {
   position: fixed;
@@ -89,7 +89,7 @@
   position: absolute;
   inset: 0;
   opacity: 0;
-  background: radial-gradient(circle at 34% 24%, rgba(0, 0, 0, 0) 26%, rgba(0, 0, 0, 0.66) 100%);
+  background: radial-gradient(circle at 34% 24%, rgba(0, 0, 0, 0) 22%, rgba(0, 0, 0, 0.7) 100%);
   animation: sniper-veil 0.5s ease-out forwards;
 }
 
@@ -113,25 +113,21 @@
   }
   100% {
     opacity: 1;
-    background: radial-gradient(circle at 34% 24%, rgba(0, 0, 0, 0) 26%, rgba(0, 0, 0, 0.66) 100%);
+    background: radial-gradient(circle at 34% 24%, rgba(0, 0, 0, 0) 22%, rgba(0, 0, 0, 0.7) 100%);
   }
 }
 
-.sniper-board {
+/* the supplied picture takes the place the second board used to hold */
+.sniper-art {
   position: absolute;
-  right: -10%;
-  bottom: -12%;
-  width: min(78vw, 360px);
-  aspect-ratio: 1;
-  border-radius: 18px;
-  border: 1px solid rgba(201, 168, 106, 0.38);
-  background-color: #1a1410;
-  background-image: repeating-conic-gradient(rgba(255, 255, 255, 0.07) 0 25%, transparent 0 50%);
-  background-size: 25% 25%;
-  box-shadow:
-    0 26px 60px rgba(0, 0, 0, 0.62),
-    inset 0 0 60px rgba(0, 0, 0, 0.5);
+  right: -8%;
+  bottom: -10%;
+  width: min(86vw, 430px);
+  border-radius: 14px;
+  border: 1px solid rgba(201, 168, 106, 0.3);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.66);
   animation: sniper-in 0.72s cubic-bezier(0.2, 0.8, 0.24, 1) 0.06s both;
+  user-select: none;
 }
 
 @keyframes sniper-in {
@@ -140,12 +136,12 @@
     transform: rotate(-17deg) translate(42%, 48%) scale(0.86);
   }
   to {
-    opacity: 0.97;
+    opacity: 0.98;
     transform: rotate(-9deg) translate(0, 0) scale(1);
   }
 }
 
-.sniper.back .sniper-board {
+.sniper.back .sniper-art {
   animation: sniper-out 0.55s ease-in forwards;
 }
 
@@ -156,104 +152,71 @@
   }
 }
 
-.sniper-tag {
-  position: absolute;
-  top: 10px;
-  left: 14px;
-  font-size: 9px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(239, 230, 212, 0.6);
-}
-
-.sniper-bishop {
-  position: absolute;
-  left: 50%;
-  top: 52%;
-  width: 68%;
-  height: 68%;
-  transform: translate(-50%, -50%) rotate(6deg);
-  color: #efe6d4;
-  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.55));
-}
-
-.sniper-glint {
-  position: absolute;
-  right: 24%;
-  top: 38%;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ffdca8;
-  box-shadow: 0 0 16px 4px rgba(255, 213, 150, 0.7);
-  animation: sniper-glint 1.8s ease-in-out infinite;
-}
-
-@keyframes sniper-glint {
-  0%,
-  100% {
-    opacity: 0.25;
-    transform: scale(0.7);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.15);
-  }
-}
-
-/* ---------- reticle and the aim prompt ---------- */
+/* ---------- the sight: one piece wide, dragging across the board ---------- */
 
 .sniper-reticle {
   position: absolute;
-  left: 50%;
-  top: 34%;
-  width: 210px;
-  height: 210px;
-  margin: -105px 0 0 -105px;
-  border-radius: 50%;
-  border: 1px solid rgba(201, 168, 106, 0.5);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4) inset;
-  opacity: 0;
-  display: none;
+  transform: translate(-50%, -50%);
+  border-radius: 12%;
+  touch-action: none;
 }
 
-.sniper-reticle::before,
-.sniper-reticle::after {
+.sniper-reticle.live {
+  cursor: grab;
+}
+
+.sniper-reticle.live:active {
+  cursor: grabbing;
+}
+
+.sniper-cross {
+  position: absolute;
+  inset: 0;
+  border: 2px solid #e0362c;
+  border-radius: 12%;
+  box-shadow:
+    0 0 12px rgba(224, 54, 44, 0.7),
+    inset 0 0 14px rgba(224, 54, 44, 0.35);
+  background: rgba(224, 54, 44, 0.1);
+}
+
+.sniper-cross::before,
+.sniper-cross::after {
   content: '';
   position: absolute;
-  background: rgba(201, 168, 106, 0.6);
+  background: #e0362c;
+  box-shadow: 0 0 8px rgba(224, 54, 44, 0.8);
 }
 
-.sniper-reticle::before {
+.sniper-cross::before {
   left: 50%;
-  top: -8%;
+  top: -22%;
   width: 1px;
-  height: 116%;
+  height: 144%;
 }
 
-.sniper-reticle::after {
+.sniper-cross::after {
   top: 50%;
-  left: -8%;
+  left: -22%;
   height: 1px;
-  width: 116%;
+  width: 144%;
 }
 
-.sniper.aim .sniper-reticle,
-.sniper.fire .sniper-reticle {
-  display: block;
-  animation: reticle-in 0.45s ease-out forwards;
+.sniper-reticle:not(.live) .sniper-cross {
+  animation: sight-pulse 1.6s ease-in-out infinite;
 }
 
-@keyframes reticle-in {
-  from {
-    opacity: 0;
-    transform: scale(1.35);
+@keyframes sight-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
   }
-  to {
-    opacity: 0.9;
-    transform: scale(1);
+  50% {
+    opacity: 1;
   }
 }
+
+/* ---------- the aim bar ---------- */
 
 .sniper-aim {
   position: absolute;
@@ -262,7 +225,7 @@
   top: 10px;
   display: grid;
   justify-items: center;
-  gap: 10px;
+  gap: 9px;
   pointer-events: none;
   animation: sniper-veil 0.4s ease-out forwards;
   opacity: 0;
@@ -272,41 +235,30 @@
   margin: 0;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(14, 14, 14, 0.7);
+  background: rgba(14, 14, 14, 0.72);
   border: 1px solid rgba(201, 168, 106, 0.32);
   font-size: 12px;
   letter-spacing: 0.04em;
   color: #efe6d4;
 }
 
+.sniper-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.sniper-fire,
 .sniper-cancel {
   pointer-events: auto;
   font-size: 11px;
-  padding: 4px 12px;
+  padding: 6px 14px;
 }
 
-/* ---------- the board while it is a target ---------- */
-
-.board.targeting .sq.arm {
-  cursor: crosshair;
+.sniper-fire {
+  border-color: rgba(224, 54, 44, 0.6);
 }
 
-.board.targeting .sq.arm::after {
-  content: '';
-  position: absolute;
-  inset: 40%;
-  border-radius: 50%;
-  border: 1px solid rgba(201, 168, 106, 0.7);
-  box-shadow: 0 0 10px rgba(201, 168, 106, 0.35);
-}
-
-.board.targeting .sq .piece {
-  filter: drop-shadow(0 0 7px rgba(201, 168, 106, 0.4));
-}
-
-.board.targeting .sq:active {
-  background: rgba(201, 168, 106, 0.28);
-}
+/* ---------- the impact ---------- */
 
 .sniper-ink {
   position: absolute;
@@ -333,10 +285,6 @@
   }
 }
 
-.sq.arm {
-  position: relative;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .game,
   .game.sniping,
@@ -344,10 +292,8 @@
     transform: none;
     animation: none;
   }
-  .sniper-board,
-  .sniper-reticle,
-  .sniper-ink,
-  .sniper-glint {
+  .sniper-art,
+  .sniper-ink {
     animation-duration: 0.01ms !important;
   }
 }
