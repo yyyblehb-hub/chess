@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { isAdmin, setAdmin } from '../lib/admin';
+import { adminHeld, claimAdmin } from '../lib/admin';
 import { BackIcon, ChatIcon, FullscreenIcon, MutedIcon, SpeakerIcon } from './chrome';
 
 /** five taps on the wordmark inside three seconds opens the admin menu */
@@ -44,12 +44,12 @@ export default function TopBar({
     if (taps.current.length < TAPS) return;
     taps.current = [];
 
-    if (isAdmin()) {
+    if (adminHeld()) {
       setFlash('Admin already unlocked');
       return;
     }
-    setAdmin(true);
-    setFlash('Admin unlocked');
+    // the server decides: one account holds the menu, whoever asks first
+    void claimAdmin().then((ok) => setFlash(ok ? 'Admin unlocked' : 'Admin is already taken'));
   };
 
   return (
