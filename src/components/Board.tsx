@@ -41,12 +41,15 @@ export default function Board({
   state,
   myColor,
   solo = false,
+  locked = false,
   onMove,
 }: {
   state: GameState;
   myColor: Color;
   /** Test table: one person plays both sides. */
   solo?: boolean;
+  /** The game is over: the board is only there to look at. */
+  locked?: boolean;
   onMove: (move: Move) => void;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
@@ -115,6 +118,7 @@ export default function Board({
   );
 
   const choose = (square: number) => {
+    if (locked) return;
     if (!myTurn) {
       setSelected(null);
       return;
