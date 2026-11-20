@@ -1,0 +1,228 @@
+/* loaded after styles.css, so these win on equal specificity */
+
+/* behind the board: pure black, nothing competing with the artwork */
+.app.in-game {
+  background-image: none;
+  background-color: #000;
+}
+
+.gameover-black {
+  background: #000;
+}
+
+/* the chat button and its unread count */
+
+.icon {
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #16110a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 0 0 2px #000;
+}
+
+.panel-tab {
+  position: relative;
+}
+
+/* a message still waiting behind the moves tab */
+.tab-dot {
+  position: absolute;
+  top: 5px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* the log */
+
+.panel-log {
+  gap: 12px;
+  padding: 12px 14px 8px;
+}
+
+.chat-empty {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.chat-empty svg {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 2px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  opacity: 0.5;
+}
+
+.chat-empty strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* one speaker's run of messages, theirs on the left, mine on the right */
+
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 84%;
+  align-items: flex-start;
+}
+
+.msg.mine {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.msg-name {
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.msg-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.msg-bubble {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border-top-left-radius: 5px;
+  background: #1b1d20;
+  font-size: 14px;
+  line-height: 1.38;
+  overflow-wrap: anywhere;
+  animation: msg-in 160ms ease-out both;
+}
+
+.msg-bubble + .msg-bubble {
+  border-top-left-radius: 14px;
+}
+
+.msg.mine .msg-bubble {
+  border-radius: 14px;
+  border-top-right-radius: 5px;
+  background: var(--accent);
+  color: #181209;
+}
+
+.msg.mine .msg-bubble + .msg-bubble {
+  border-top-right-radius: 14px;
+}
+
+.msg-time {
+  padding: 0 4px;
+  font-size: 10px;
+  color: var(--dim);
+}
+
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msg-bubble {
+    animation: none;
+  }
+}
+
+/* shown only when the reader has scrolled back through the log */
+
+.chat-jump {
+  position: absolute;
+  left: 50%;
+  bottom: 78px;
+  z-index: 1;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #26292e;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+
+/* the composer: a pill field and one round send button */
+
+.panel-form {
+  align-items: flex-end;
+  padding: 10px 12px 0;
+}
+
+.panel-form .field {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 16px;
+  border-radius: 999px;
+  font-size: 16px;
+}
+
+.send {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #181209;
+  cursor: pointer;
+}
+
+.send:disabled {
+  background: rgba(239, 228, 208, 0.14);
+  color: var(--dim);
+  cursor: default;
+}
+
+.send svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
