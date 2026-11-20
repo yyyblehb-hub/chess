@@ -335,6 +335,7 @@ function GameScreen({
   onMove,
   onCopy,
   onRematch,
+  onLeave,
 }: {
   room: Room;
   moves: Move[];
@@ -342,6 +343,7 @@ function GameScreen({
   onMove: (move: Move) => void;
   onCopy: () => void;
   onRematch: () => void;
+  onLeave: () => void;
 }) {
   const state = useMemo(() => replay(moves), [moves]);
   const solo = room.solo === true;
@@ -372,6 +374,20 @@ function GameScreen({
             ? 'your move'
             : 'waiting';
 
+  // what chess.com puts in the middle of the board when the game is over
+  const winner = status === 'checkmate' ? (state.turn === 'w' ? 'black' : 'white') : null;
+  const alone = !solo && room.players.length < 2;
+  const mySide = myColor === 'w' ? 'white' : 'black';
+  const outcome = !winner
+    ? 'Draw'
+    : solo || alone
+      ? `${winner === 'white' ? 'White' : 'Black'} won`
+      : winner === mySide
+        ? 'You won'
+        : 'You lost';
+  const score = !winner ? '½-½' : winner === 'white' ? '1-0' : '0-1';
+  const canRematch = solo || room.players.length >= 2;
+
   const opponentName = solo ? profile.name : (opponent?.name ?? 'opponent');
   const myName = profile.name;
   const myTag = room.players[myIndex]?.tag ?? profile.tag ?? null;
@@ -400,7 +416,7 @@ function GameScreen({
         </button>
       </div>
 
-      <Board state={state} myColor={myColor} solo={solo} onMove={onMove} />
+      <Board state={state} myColor={myColor} solo={solo} locked={over} onMove={onMove} />
 
       <div className="pcard">
         <div className="pfp mid">{myFace}</div>
@@ -411,12 +427,29 @@ function GameScreen({
           </strong>
           <span className={over ? 'over' : undefined}>{label}</span>
         </div>
-        {(over || solo) && (
-          <button className="chip" onClick={onRematch}>
-            {solo ? 'new game' : 'rematch'}
-          </button>
-        )}
       </div>
+
+      {over && (
+        <div className="gameover">
+          <div className="result-card" role="dialog" aria-modal="true" aria-label="Game over">
+            <span className="result-kicker">{status === 'checkmate' ? 'Checkmate' : 'Stalemate'}</span>
+            <strong className="result-title">{outcome}</strong>
+            <span className="result-sub">
+              {winner ? `${winner === 'white' ? 'White' : 'Black'} won` : 'Draw'} · {score}
+            </span>
+            <div className="result-actions">
+              {canRematch && (
+                <button className="btn primary" onClick={onRematch}>
+                  Rematch
+                </button>
+              )}
+              <button className="btn ghost" onClick={onLeave}>
+                New game
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -834,9 +867,12 @@ export default function App() {
   }, []);
 
   // Music belongs to the lobby: silence it the moment the board appears, and
-  // bring it back if the player returns to the menu afterwards.
+  // bring it back if the player returns to the menu afterwards. A finished game
+  // stays on the board even if the other player walks away.
   const inGame =
-    screen === 'room' && room !== null && (room.solo === true || room.players.length >= 2);
+    screen === 'room' &&
+    room !== null &&
+    (room.solo === true || room.players.length >= 2 || room.moves.length > 0);
   const resumeAfterMatchRef = useRef(false);
 
   useEffect(() => {
@@ -1058,6 +1094,7 @@ export default function App() {
             onMove={queueMove}
             onCopy={() => void copyCode()}
             onRematch={() => send({ t: 'rematch' })}
+            onLeave={leaveTable}
           />
         )}
 
