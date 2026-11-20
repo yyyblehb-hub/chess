@@ -979,13 +979,13 @@ export default function App() {
     send({ t: 'join', code, id: profile.id, name: profile.name, avatar: profile.avatar, tag: profile.tag ?? null });
   };
 
+  // copying stays silent: the code is already on screen, so no popup
   const copyCode = async () => {
     if (!room) return;
     try {
       await navigator.clipboard.writeText(room.code);
-      notify(`${room.code} copied`);
     } catch {
-      notify(room.code);
+      /* clipboard blocked — the code is readable on screen anyway */
     }
   };
 
