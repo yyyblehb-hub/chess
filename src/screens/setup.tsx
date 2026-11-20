@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import NameTag from '../components/NameTag';
 import { fileToAvatar, fileToTag, loadId, type Profile, type TrackId } from '../lib/profile';
+import { isAdmin, setAdmin } from '../lib/admin';
 import { TRACKS } from '../lib/tracks';
 
 /* ---------- identity ---------- */
@@ -112,6 +113,7 @@ export function SettingsScreen({
   onTrack: (track: TrackId) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [admin, setAdminOn] = useState(isAdmin);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const pickTag = async (file: File | undefined) => {
@@ -179,6 +181,23 @@ export function SettingsScreen({
           ))}
         </div>
       </div>
+
+      {admin && (
+        <div className="setup-field">
+          <span className="label">Admin</span>
+          <p className="muted">Unlocked on this device only. Custom pieces will live here.</p>
+          <button
+            type="button"
+            className="link"
+            onClick={() => {
+              setAdmin(false);
+              setAdminOn(false);
+            }}
+          >
+            Lock admin
+          </button>
+        </div>
+      )}
     </div>
   );
 }
