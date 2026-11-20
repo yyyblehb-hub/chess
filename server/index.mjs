@@ -195,24 +195,25 @@ server.on('upgrade', (req, socket, head) => {
     return;
   }
 
+  // no session, no lobby: the handshake itself is refused, so a bot never
+  // gets a socket to talk to (a proxied close would just hang instead)
+  const account = userForToken(searchParams.get('token'));
+  if (!account) {
+    socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+
   if (!guard.allowSocket(ip)) {
     socket.write('HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n');
     socket.destroy();
     return;
   }
 
-  // no session, no lobby: this is what stops anonymous bots filling the queue
-  const account = userForToken(searchParams.get('token'));
   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req, account, ip));
 });
 
 wss.on('connection', (ws, _req, account, ip) => {
-  // 4401 is the client's cue to drop the dead token and show the sign-in screen
-  if (!account) {
-    ws.close(4401, 'sign in');
-    guard.dropSocket(ip);
-    return;
-  }
   ws.data = {
     roomCode: null,
     searching: false,
