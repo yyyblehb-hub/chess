@@ -131,16 +131,13 @@ input {
   padding-bottom: 4px;
 }
 
-.title {
-  margin: 0;
-  font-size: 38px;
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-}
-
 .push {
   margin-top: auto;
+}
+
+/* no big heading here: the bar already says Chess, so lift the block a little */
+.screen.identity {
+  padding-bottom: 40px;
 }
 
 /* settings grew past a phone screen, so it scrolls from the top instead */
@@ -993,10 +990,6 @@ input {
 }
 
 @media (max-height: 680px) {
-  .title {
-    font-size: 32px;
-  }
-
   .screen {
     gap: 14px;
     padding-top: 12px;
