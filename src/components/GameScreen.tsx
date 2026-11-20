@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Board from './Board';
+import SniperScene, { type Box } from './SniperScene';
 import { applyMove, gameResult, initialState, moveNotation, replay, type Color, type Move } from '../lib/chess';
 import { type Profile } from '../lib/profile';
 import { type Room } from '../lib/lobby';
 import { applyShots } from '../lib/shots';
 import { refreshAdmin } from '../lib/admin';
+import { useAim } from '../lib/aim';
 import NameTag from './NameTag';
 
 /* ---------- game ---------- */
@@ -35,26 +37,6 @@ function Crest({ verdict }: { verdict: string }) {
   );
 }
 
-/** board #2's shooter: a bishop with a scoped rifle, drawn by hand */
-function SniperBishop() {
-  return (
-    <svg viewBox="0 0 120 120" className="sniper-bishop" aria-hidden="true">
-      <g fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="44" cy="30" r="5.5" />
-        <path d="M44 24c8 5 10 14 7 21H37c-3-7-1-16 7-21z" />
-        <path d="M37 47h14l4 24H33z" />
-        <path d="M29 79h30v9H29z" />
-        <path d="M55 58h40" />
-        <path d="M66 51h13v7H66z" />
-        <path d="M75 51v-3" />
-        <path d="M92 55l7 3-7 3" />
-        <path d="M58 65l7 7" />
-        <path d="M64 72l-4 8" />
-      </g>
-    </svg>
-  );
-}
-
 export default function GameScreen({
   room,
   moves,
@@ -64,6 +46,7 @@ export default function GameScreen({
   onRematch,
   onLeave,
   onShoot,
+  onAim,
 }: {
   room: Room;
   moves: Move[];
@@ -73,6 +56,7 @@ export default function GameScreen({
   onRematch: () => void;
   onLeave: () => void;
   onShoot: (square: number) => void;
+  onAim: (x: number, y: number, on: boolean) => void;
 }) {
   // the sniper's emptied squares sit on top of the replayed position
   const state = useMemo(() => applyShots(replay(moves), room.shots), [moves, room.shots]);
@@ -123,9 +107,15 @@ export default function GameScreen({
     void refreshAdmin().then(setAdmin);
   }, []);
 
+  const remote = useAim();
   const [scene, setScene] = useState<'zoom' | 'aim' | 'fire' | 'back' | null>(null);
+  const [aim, setAim] = useState({ x: 0.5, y: 0.5 });
+  const [blast, setBlast] = useState(false);
   const [hit, setHit] = useState<number | null>(null);
+  const [box, setBox] = useState<Box | null>(null);
   const timers = useRef<number[]>([]);
+  const sentAt = useRef(0);
+
   const later = (ms: number, run: () => void) => {
     timers.current.push(window.setTimeout(run, ms));
   };
@@ -135,34 +125,75 @@ export default function GameScreen({
   };
   useEffect(() => clearTimers, []);
 
-  // the camera pulls back diagonally, board #2 slides in, then the pieces arm
+  // the sight rides on the real board, so its square is measured, not guessed
+  const measure = useCallback(() => {
+    const board = document.querySelector('.board');
+    if (!board) return;
+    const rect = board.getBoundingClientRect();
+    setBox({ left: rect.left, top: rect.top, size: rect.width });
+  }, []);
+
+  useEffect(() => {
+    if (!scene && !remote.on) return;
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [scene, remote.on, measure]);
+
+  // the camera pulls back diagonally, the picture slides in, then the sight arms
   const armSniper = () => {
     if (scene) return;
-    setHit(null);
+    clearTimers();
+    setBlast(false);
+    measure();
+    onAim(0.5, 0.5, true);
     setScene('zoom');
     later(620, () => setScene('aim'));
   };
 
   const holdFire = () => {
     clearTimers();
+    onAim(aim.x, aim.y, false);
     setScene('back');
-    later(560, () => {
-      setScene(null);
-      setHit(null);
-    });
+    later(560, () => setScene(null));
   };
 
-  const fireAt = (square: number) => {
+  // dragging is a stream of taps: the other player gets a readable trickle
+  const moveSight = (x: number, y: number) => {
+    setAim({ x, y });
+    const now = Date.now();
+    if (now - sentAt.current < 60) return;
+    sentAt.current = now;
+    onAim(x, y, true);
+  };
+
+  const fireAt = () => {
     if (scene !== 'aim') return;
+    const column = Math.min(7, Math.max(0, Math.floor(aim.x * 8)));
+    const row = Math.min(7, Math.max(0, Math.floor(aim.y * 8)));
+    const flipped = !solo && myColor === 'b';
+    const square = flipped ? (7 - row) * 8 + (7 - column) : row * 8 + column;
     setScene('fire');
     setHit(square);
     onShoot(square);
+    onAim(aim.x, aim.y, false);
     later(1050, () => setScene('back'));
     later(1650, () => {
       setScene(null);
       setHit(null);
     });
   };
+
+  // the other player's board answers a shot with the same flash
+  const shots = room.shots?.length ?? 0;
+  const seenShots = useRef(shots);
+  useEffect(() => {
+    if (shots === seenShots.current) return;
+    seenShots.current = shots;
+    if (scene) return;
+    setBlast(true);
+    later(1000, () => setBlast(false));
+  }, [shots, scene]);
 
   // what chess.com puts in the middle of the board when the game is over
   const winner = result === 'checkmate' ? (state.turn === 'w' ? 'black' : 'white') : null;
@@ -192,9 +223,13 @@ export default function GameScreen({
   );
   const myFace = profile.avatar ? <img src={profile.avatar} alt="" /> : (solo ? 'W' : myName.slice(0, 1).toUpperCase());
 
+  // the shooter plays its own scene; everyone else watches the relayed one
+  const viewing = scene ?? (blast ? 'fire' : remote.on ? 'aim' : null);
+  const sight = scene ? aim : { x: remote.x, y: remote.y };
+
   return (
     <>
-      <div className={`game${scene ? ' sniping' : ''}${scene === 'fire' ? ' firing' : ''}`}>
+      <div className={`game${viewing ? ' sniping' : ''}${viewing === 'fire' ? ' firing' : ''}`}>
         <div className="pcard">
           <div className="pfp mid">{opponentFace}</div>
           <div className="meta">
@@ -208,16 +243,7 @@ export default function GameScreen({
           </button>
         </div>
 
-        <Board
-          state={shown}
-          myColor={myColor}
-          solo={solo}
-          locked={over || !live}
-          targeting={scene === 'aim'}
-          hit={hit}
-          onMove={onMove}
-          onShoot={fireAt}
-        />
+        <Board state={shown} myColor={myColor} solo={solo} locked={over || !live} hit={hit} onMove={onMove} />
 
         <div className="pcard">
           <div className="pfp mid">{myFace}</div>
@@ -323,24 +349,16 @@ export default function GameScreen({
         )}
       </div>
 
-      {scene && (
-        <div className={`sniper ${scene}`} aria-hidden="true">
-          <div className="sniper-veil" />
-          <div className="sniper-reticle" />
-          <div className="sniper-board">
-            <span className="sniper-tag">board #2</span>
-            <SniperBishop />
-            <span className="sniper-glint" />
-          </div>
-          {scene === 'aim' && (
-            <div className="sniper-aim">
-              <p className="sniper-hint">Tap any piece to take it off the board</p>
-              <button type="button" className="btn ghost sniper-cancel" onClick={holdFire}>
-                Hold fire
-              </button>
-            </div>
-          )}
-        </div>
+      {viewing && (
+        <SniperScene
+          mode={viewing}
+          reticle={sight}
+          board={box}
+          interactive={scene === 'aim'}
+          onMove={moveSight}
+          onFire={fireAt}
+          onHold={holdFire}
+        />
       )}
     </>
   );
