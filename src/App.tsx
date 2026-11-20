@@ -11,7 +11,8 @@ import { type Move } from './lib/chess';
 import { useLobby, type Room, type ServerMessage } from './lib/lobby';
 import { useMusic } from './lib/music';
 import { clearProfile, loadProfile, loadTrack, saveProfile, type Profile, type TrackId } from './lib/profile';
-import { playMoveSound } from './lib/sound';
+import { playMoveSound, playShotSound } from './lib/sound';
+import { setAim } from './lib/aim';
 
 type Screen = 'auth' | 'menu' | 'settings' | 'join' | 'search' | 'room';
 
@@ -27,7 +28,6 @@ export default function App() {
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const [panel, setPanel] = useState<'chat' | 'moves' | null>(null);
   const [chat, setChat] = useState<ChatLine[]>([]);
-  // messages that landed while the chat was not on screen
   const [unread, setUnread] = useState(0);
   const [track, setTrack] = useState<TrackId>(loadTrack());
 
@@ -102,8 +102,13 @@ export default function App() {
           if (panelRef.current !== 'chat') setUnread((count) => count + 1);
           break;
         case 'shoot':
-          // the emptied square rides with the room, so a review shows it too
+          // the emptied square rides with the room, so a review shows it too;
+          // the round is heard by both players because both get this frame
+          playShotSound();
           setRoom((current) => (current ? { ...current, shots: message.shots } : current));
+          break;
+        case 'aim':
+          setAim({ on: message.on, x: message.x, y: message.y });
           break;
         case 'notice':
           notify(message.message);
@@ -148,8 +153,7 @@ export default function App() {
     setScreen((current) => (current === 'auth' ? 'menu' : current));
   }, [account]);
 
-  // Tell the server who we are as soon as the socket is up. That sign-in is what
-  // earns the titles, and the very first player ever gets GM.
+  // the hello frame is what earns the titles; the first player ever gets GM
   useEffect(() => {
     const current = profileRef.current;
     if (!connected || !current) return;
@@ -169,7 +173,6 @@ export default function App() {
     [send],
   );
 
-  // A match silences the lobby song; leaving the board brings it back.
   const inGame =
     screen === 'room' &&
     room !== null &&
@@ -183,7 +186,7 @@ export default function App() {
     image.src = '/assets/board-wood.jpg';
   }, []);
 
-  // First tap anywhere: go fullscreen and start the music (browsers need a gesture).
+  // first tap: fullscreen and music (browsers need a gesture)
   useEffect(() => {
     const onFirstGesture = () => {
       void toggleFullscreen();
@@ -238,7 +241,7 @@ export default function App() {
     send({ t: 'chat', text });
   };
 
-  // chess.com's "Find new match": leave this table and queue for the next one
+  // chess.com's "Find new match": leave this table and queue again
   const newMatch = () => {
     if (!profile) return;
     leaveTable();
@@ -266,7 +269,6 @@ export default function App() {
     send({ t: 'join', code, id: profile.id, name: profile.name, avatar: profile.avatar, tag: profile.tag ?? null });
   };
 
-  // copying stays silent: the code is already on screen, so no popup
   const copyCode = async () => {
     if (!room) return;
     try {
@@ -339,6 +341,7 @@ export default function App() {
             onRematch={() => send({ t: 'rematch' })}
             onLeave={newMatch}
             onShoot={(square) => send({ t: 'shoot', square })}
+            onAim={(x, y, on) => send({ t: 'aim', x, y, on })}
           />
         )}
 
