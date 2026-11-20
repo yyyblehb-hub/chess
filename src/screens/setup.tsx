@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import NameTag from '../components/NameTag';
-import { isAdmin, setAdmin } from '../lib/admin';
+import { refreshAdmin } from '../lib/admin';
 import { fileToAvatar, fileToTag, type Profile, type TrackId } from '../lib/profile';
 import { TRACKS } from '../lib/tracks';
 
@@ -17,7 +17,13 @@ export function SettingsScreen({
 }) {
   const [busy, setBusy] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
-  const [admin, setAdminOn] = useState(isAdmin);
+  const [admin, setAdminOn] = useState(false);
+
+  // the claim lives on the server, so it is asked for when this screen opens
+  useEffect(() => {
+    void refreshAdmin().then(setAdminOn);
+  }, []);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarRef = useRef<HTMLInputElement>(null);
 
@@ -138,17 +144,9 @@ export function SettingsScreen({
       {admin && (
         <div className="setup-field">
           <span className="label">Admin</span>
-          <p className="muted">Unlocked on this device only. Custom pieces will live here.</p>
-          <button
-            type="button"
-            className="link"
-            onClick={() => {
-              setAdmin(false);
-              setAdminOn(false);
-            }}
-          >
-            Lock admin
-          </button>
+          <p className="muted">
+            This account holds the admin menu for good. Custom pieces will live here.
+          </p>
         </div>
       )}
     </div>
