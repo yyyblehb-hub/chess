@@ -52,6 +52,35 @@ input {
   background-color: #12110f;
 }
 
+/* designs picked in settings; wood keeps the artwork */
+.app.theme-black {
+  background-image: none;
+  background-color: #000;
+}
+
+.app.theme-gray {
+  background-image: none;
+  background-color: #3a3a3a;
+}
+
+.app.theme-pink {
+  background-image: none;
+  background-color: #93435f;
+}
+
+.app.theme-blue {
+  background-image: none;
+  background-color: #101a2e;
+}
+
+.app.theme-checker {
+  background-color: #6b4a2f;
+  background-image: repeating-conic-gradient(#6b4a2f 0% 25%, #8a6240 0% 50%);
+  background-size: 44px 44px;
+  background-position: 0 0;
+  background-repeat: repeat;
+}
+
 /* like play.chess.com, the board runs to the edges of the screen */
 .app.in-game .shell {
   padding-left: 8px;
@@ -418,6 +447,72 @@ input {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* design picker */
+
+.themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.theme {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.theme.sel {
+  color: var(--text);
+}
+
+.swatch {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background-size: cover;
+  background-position: center;
+}
+
+.theme.sel .swatch {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.swatch.wood {
+  background-image: url('/assets/chess-bg.jpg');
+}
+
+.swatch.black {
+  background-color: #000;
+}
+
+.swatch.gray {
+  background-color: #3a3a3a;
+}
+
+.swatch.pink {
+  background-color: #93435f;
+}
+
+.swatch.blue {
+  background-color: #101a2e;
+}
+
+.swatch.checker {
+  background-color: #6b4a2f;
+  background-image: repeating-conic-gradient(#6b4a2f 0% 25%, #8a6240 0% 50%);
+  background-size: 20px 20px;
 }
 
 /* in-game chat */
