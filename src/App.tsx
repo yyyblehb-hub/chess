@@ -306,7 +306,6 @@ export default function App() {
           <MenuScreen
             profile={profile}
             onFind={startFind}
-            onCreate={startCreate}
             onJoin={() => setScreen('join')}
             onSettings={() => setScreen('settings')}
             onResign={resign}
@@ -323,7 +322,7 @@ export default function App() {
           />
         )}
 
-        {screen === 'join' && <JoinScreen busy={joinBusy} onJoin={submitJoin} />}
+        {screen === 'join' && <JoinScreen busy={joinBusy} onJoin={submitJoin} onCreate={startCreate} />}
 
         {screen === 'search' && <SearchScreen onCancel={leaveTable} />}
 
