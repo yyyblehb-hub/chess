@@ -16,8 +16,6 @@ import { setAim } from './lib/aim';
 
 type Screen = 'auth' | 'menu' | 'settings' | 'join' | 'search' | 'room';
 
-/* ---------- app ---------- */
-
 export default function App() {
   const { account, token, ready, adopt, forget } = useSession();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -34,7 +32,6 @@ export default function App() {
   const roomRef = useRef<Room | null>(null);
   const panelRef = useRef<'chat' | 'moves' | null>(null);
   const profileRef = useRef<Profile | null>(profile);
-  // moves already shown on this board that the server has not echoed yet
   const pendingMoves = useRef<Move[]>([]);
 
   roomRef.current = room;
@@ -87,8 +84,6 @@ export default function App() {
           setChat((current) => [
             ...current,
             {
-              // a server that predates the id/at fields still works: the name
-              // decides the side and the time is when it landed here
               id:
                 message.id ??
                 (profileRef.current && message.from === profileRef.current.name
@@ -102,13 +97,15 @@ export default function App() {
           if (panelRef.current !== 'chat') setUnread((count) => count + 1);
           break;
         case 'shoot':
-          // the emptied square rides with the room, so a review shows it too;
           // the shooter already heard its own round on the trigger
           if (message.by !== profileRef.current?.id) playShotSound();
           setRoom((current) => (current ? { ...current, shots: message.shots } : current));
           break;
         case 'aim':
           setAim({ on: message.on, x: message.x, y: message.y });
+          break;
+        case 'magic':
+          setRoom((current) => (current ? { ...current, magic: message.events } : current));
           break;
         case 'notice':
           notify(message.message);
@@ -342,6 +339,8 @@ export default function App() {
             onLeave={newMatch}
             onShoot={(square) => send({ t: 'shoot', square })}
             onAim={(x, y, on) => send({ t: 'aim', x, y, on })}
+            onSpawn={(kind, square) => send({ t: 'spawn', kind, square })}
+            onMagic={(from, to) => send({ t: 'magic', from, to })}
           />
         )}
 
