@@ -1,5 +1,29 @@
 const PROFILE_KEY = 'chess.profile.v1';
 const ID_KEY = 'chess.id.v1';
+const THEME_KEY = 'chess.theme.v1';
+
+export type ThemeId = 'wood' | 'black' | 'gray' | 'pink' | 'blue' | 'checker';
+
+const THEME_IDS: ThemeId[] = ['wood', 'black', 'gray', 'pink', 'blue', 'checker'];
+
+/** The chosen design is a device preference, so it outlives signing out. */
+export function loadTheme(): ThemeId {
+  try {
+    const stored = window.localStorage.getItem(THEME_KEY);
+    if (stored && THEME_IDS.includes(stored as ThemeId)) return stored as ThemeId;
+  } catch {
+    /* storage blocked; the wooden look is the default */
+  }
+  return 'wood';
+}
+
+export function saveTheme(theme: ThemeId) {
+  try {
+    window.localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    /* storage can be blocked; the design still applies for this session */
+  }
+}
 
 export type Profile = {
   id: string;
