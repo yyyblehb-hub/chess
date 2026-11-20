@@ -29,14 +29,12 @@ export function PlayerRow({ player, you }: { player?: Player; you: string }) {
 export function MenuScreen({
   profile,
   onFind,
-  onCreate,
   onJoin,
   onSettings,
   onResign,
 }: {
   profile: { name: string; avatar: string | null; tag?: string | null };
   onFind: () => void;
-  onCreate: () => void;
   onJoin: () => void;
   onSettings: () => void;
   onResign: () => void;
@@ -57,11 +55,8 @@ export function MenuScreen({
         <button className="btn primary" onClick={onFind}>
           Find random match
         </button>
-        <button className="btn" onClick={onCreate}>
-          Create match
-        </button>
         <button className="btn" onClick={onJoin}>
-          Join match
+          Play with a friend
         </button>
         <button className="btn" onClick={onSettings}>
           Settings
@@ -77,7 +72,15 @@ export function MenuScreen({
 
 /* ---------- join ---------- */
 
-export function JoinScreen({ busy, onJoin }: { busy: boolean; onJoin: (code: string) => void }) {
+export function JoinScreen({
+  busy,
+  onJoin,
+  onCreate,
+}: {
+  busy: boolean;
+  onJoin: (code: string) => void;
+  onCreate: () => void;
+}) {
   const [code, setCode] = useState('');
   const ready = code.length >= 4;
 
@@ -109,8 +112,12 @@ export function JoinScreen({ busy, onJoin }: { busy: boolean; onJoin: (code: str
         />
       </div>
 
-      <button className="btn primary push" disabled={!ready || busy} onClick={() => onJoin(code)}>
+      <button className="btn primary" disabled={!ready || busy} onClick={() => onJoin(code)}>
         {busy ? 'Joining...' : 'Join match'}
+      </button>
+
+      <button className="btn ghost push" onClick={onCreate}>
+        Create a table
       </button>
     </div>
   );
