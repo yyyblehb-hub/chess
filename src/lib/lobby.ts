@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Color, Move } from './chess';
+import { sessionDead } from './auth';
 
 export type Player = {
   id: string;
@@ -63,7 +64,9 @@ export function useLobby(onMessage: Handlers, token: string | null, onAuthLost?:
       );
       socketRef.current = socket;
 
+      let opened = false;
       socket.onopen = () => {
+        opened = true;
         retries = 0;
         setConnected(true);
         const queued = pendingRef.current;
@@ -85,6 +88,12 @@ export function useLobby(onMessage: Handlers, token: string | null, onAuthLost?:
         if (event.code === 4401) {
           lostRef.current?.();
           return;
+        }
+        // a refused handshake never opens the socket: check before retrying
+        if (!opened) {
+          void sessionDead().then((dead) => {
+            if (dead) lostRef.current?.();
+          });
         }
         if (!disposed) {
           retryTimer = setTimeout(connect, Math.min(4000, 400 * 2 ** retries));
