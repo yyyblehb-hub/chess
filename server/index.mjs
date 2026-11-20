@@ -339,6 +339,18 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    if (message.t === 'chat') {
+      const room = rooms.get(ws.data.roomCode);
+      if (!room) return;
+      const from = room.players.find((player) => player.ws === ws);
+      if (!from) return;
+      const text = typeof message.text === 'string' ? message.text.trim().slice(0, 300) : '';
+      if (!text) return;
+      const payload = { t: 'chat', from: from.name, text };
+      for (const player of room.players) send(player.ws, payload);
+      return;
+    }
+
     if (message.t === 'rematch') {
       const room = rooms.get(ws.data.roomCode);
       if (!room) return;
