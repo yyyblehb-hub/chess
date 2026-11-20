@@ -1,10 +1,25 @@
 import type { Color, GameState } from './chess';
 
+import camelW from '../assets/magic/camel-w.svg';
+import camelB from '../assets/magic/camel-b.svg';
+import zebraW from '../assets/magic/zebra-w.svg';
+import zebraB from '../assets/magic/zebra-b.svg';
+import alfilW from '../assets/magic/alfil-w.svg';
+import alfilB from '../assets/magic/alfil-b.svg';
+import dabbabaW from '../assets/magic/dabbaba-w.svg';
+import dabbabaB from '../assets/magic/dabbaba-b.svg';
+import giraffeW from '../assets/magic/giraffe-w.svg';
+import giraffeB from '../assets/magic/giraffe-b.svg';
+import floweyArt from '../assets/magic/flowey.svg';
+
 /**
  * Special pieces sit outside the normal engine, so the fifty-year-old rules of
  * chess never have to learn about a camel. The admin spawns them, they move by
  * their own table, and every change is an event in an ordered log: both players
  * replay the log over the position, so a rejoin or a move review still agrees.
+ *
+ * The five leapers are the Wikimedia Commons fairy set (transparent SVG, one
+ * file per colour); Flowey's flower is drawn here, petal by petal.
  */
 export type MagicKind = 'camel' | 'zebra' | 'alfil' | 'dabbaba' | 'giraffe' | 'flowey';
 
@@ -15,16 +30,47 @@ export type MagicEvent =
   | { t: 'move'; from: number; to: number }
   | { t: 'gone'; sq: number };
 
-type Spec = { label: string; glyph: string; jumps: number[][]; slider?: boolean };
+type Spec = { label: string; glyph: string; jumps: number[][]; slider?: boolean; art: Record<Color, string> };
 
 export const KINDS: Record<MagicKind, Spec> = {
-  camel: { label: 'Camel', glyph: 'C', jumps: [[1, 3], [3, 1], [3, -1], [1, -3], [-1, -3], [-3, -1], [-3, 1], [-1, 3]] },
-  zebra: { label: 'Zebra', glyph: 'Z', jumps: [[2, 3], [3, 2], [3, -2], [2, -3], [-2, -3], [-3, -2], [-3, 2], [-2, 3]] },
-  alfil: { label: 'Alfil', glyph: 'A', jumps: [[2, 2], [2, -2], [-2, 2], [-2, -2]] },
-  dabbaba: { label: 'Dabbaba', glyph: 'D', jumps: [[0, 2], [2, 0], [0, -2], [-2, 0]] },
-  giraffe: { label: 'Giraffe', glyph: 'G', jumps: [[1, 4], [4, 1], [4, -1], [1, -4], [-1, -4], [-4, -1], [-4, 1], [-1, 4]] },
+  camel: {
+    label: 'Camel',
+    glyph: 'C',
+    jumps: [[1, 3], [3, 1], [3, -1], [1, -3], [-1, -3], [-3, -1], [-3, 1], [-1, 3]],
+    art: { w: camelW, b: camelB },
+  },
+  zebra: {
+    label: 'Zebra',
+    glyph: 'Z',
+    jumps: [[2, 3], [3, 2], [3, -2], [2, -3], [-2, -3], [-3, -2], [-3, 2], [-2, 3]],
+    art: { w: zebraW, b: zebraB },
+  },
+  alfil: {
+    label: 'Alfil',
+    glyph: 'A',
+    jumps: [[2, 2], [2, -2], [-2, 2], [-2, -2]],
+    art: { w: alfilW, b: alfilB },
+  },
+  dabbaba: {
+    label: 'Dabbaba',
+    glyph: 'D',
+    jumps: [[0, 2], [2, 0], [0, -2], [-2, 0]],
+    art: { w: dabbabaW, b: dabbabaB },
+  },
+  giraffe: {
+    label: 'Giraffe',
+    glyph: 'G',
+    jumps: [[1, 4], [4, 1], [4, -1], [1, -4], [-1, -4], [-4, -1], [-4, 1], [-1, 4]],
+    art: { w: giraffeW, b: giraffeB },
+  },
   // the one with superpowers: the queen's reach, and it burns what stands next to it
-  flowey: { label: 'Omega Flowey', glyph: '✿', jumps: [], slider: true },
+  flowey: {
+    label: 'Omega Flowey',
+    glyph: '✿',
+    jumps: [],
+    slider: true,
+    art: { w: floweyArt, b: floweyArt },
+  },
 };
 
 export const MAGIC_ORDER: MagicKind[] = ['camel', 'zebra', 'alfil', 'dabbaba', 'giraffe', 'flowey'];
