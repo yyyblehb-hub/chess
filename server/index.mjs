@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,6 +5,7 @@ import compression from 'compression';
 import express from 'express';
 import { WebSocketServer } from 'ws';
 import { applyMove, gameResult, initialState } from './chess.mjs';
+import { accountCount, authRouter, clientIp, guard, readAppearance, userForToken } from './auth.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -18,58 +18,22 @@ const CODE_LENGTH = 5;
 const TEST_CODE = 'AAA4';
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-/** Sign-in order, oldest first. The first id ever seen carries the GM title. */
-const PLAYERS_FILE = path.join(root, 'server', 'data', 'players.json');
-const PINNED_FIRST = (process.env.GM_ID || '').trim();
-
-function loadSignIns() {
-  const ids = [];
-  if (PINNED_FIRST) ids.push(PINNED_FIRST);
-  try {
-    const parsed = JSON.parse(fs.readFileSync(PLAYERS_FILE, 'utf8'));
-    if (Array.isArray(parsed)) {
-      for (const id of parsed) {
-        if (typeof id === 'string' && id && !ids.includes(id)) ids.push(id);
-      }
-    }
-  } catch {
-    /* first ever boot: nobody has signed in yet */
-  }
-  return ids;
-}
-
-const signIns = loadSignIns();
-
-function saveSignIns() {
-  try {
-    fs.mkdirSync(path.dirname(PLAYERS_FILE), { recursive: true });
-    fs.writeFileSync(PLAYERS_FILE, JSON.stringify(signIns));
-  } catch {
-    /* read-only host: titles last for this process, the order is still right */
-  }
-}
-
-/** Records a sign-in and hands back the title it earned, if any. */
-function titleFor(id) {
-  if (!id) return null;
-  if (!signIns.includes(id)) {
-    signIns.push(id);
-    saveSignIns();
-  }
-  return signIns[0] === id ? 'GM' : null;
-}
-
 /** @type {Map<string, { code: string, mode: string, players: Array<{ id: string, name: string, avatar: string | null, tag: string | null, ws: any }> }>} */
 const rooms = new Map();
 /** @type {any[]} */
 const queue = [];
 
 const app = express();
+app.set('trust proxy', true);
 app.use(compression());
+app.use(express.json({ limit: '32kb' }));
+// register / login / me / logout — the only way to get a session
+app.use('/api/auth', authRouter);
 const server = http.createServer(app);
 
+// a plain uptime ping: it deliberately does not list table codes any more
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, rooms: [...rooms.keys()], queued: queue.length });
+  res.json({ ok: true, tables: Math.max(0, rooms.size - 1), queued: queue.length, accounts: accountCount() });
 });
 
 if (isProd) {
@@ -108,20 +72,9 @@ function makeCode() {
   throw new Error('No room codes available');
 }
 
-function readPlayer(data) {
-  const name = typeof data?.name === 'string' ? data.name.trim().slice(0, 16) : '';
-  const avatar =
-    typeof data?.avatar === 'string' &&
-    data.avatar.startsWith('data:image/') &&
-    data.avatar.length < 120_000
-      ? data.avatar
-      : null;
-  const tag =
-    typeof data?.tag === 'string' && data.tag.startsWith('data:image/') && data.tag.length < 120_000
-      ? data.tag
-      : null;
-  const id = typeof data?.id === 'string' ? data.id.slice(0, 64) : '';
-  return { id, name: name || 'Player', avatar, tag, title: titleFor(id) };
+function readPlayer(data, account) {
+  // the identity is the signed-in account; only the artwork is client-supplied
+  return { id: account.id, name: account.name, ...readAppearance(data), title: account.title ?? null };
 }
 
 function roomView(room) {
@@ -231,16 +184,41 @@ function tryPair() {
 const wss = new WebSocketServer({ noServer: true });
 
 server.on('upgrade', (req, socket, head) => {
-  const { pathname } = new URL(req.url || '/', 'http://localhost');
+  const { pathname, searchParams } = new URL(req.url || '/', 'http://localhost');
   if (pathname !== '/ws') return;
-  wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+
+  const ip = clientIp(req);
+  const room = guard.blocked(ip);
+  if (room) {
+    socket.write('HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+
+  if (!guard.allowSocket(ip)) {
+    socket.write('HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+
+  // no session, no lobby: this is what stops anonymous bots filling the queue
+  const account = userForToken(searchParams.get('token'));
+  wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req, account, ip));
 });
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, _req, account, ip) => {
+  // 4401 is the client's cue to drop the dead token and show the sign-in screen
+  if (!account) {
+    ws.close(4401, 'sign in');
+    guard.dropSocket(ip);
+    return;
+  }
   ws.data = {
     roomCode: null,
     searching: false,
-    player: { id: '', name: 'Player', avatar: null, tag: null, title: null },
+    ip,
+    account,
+    player: { id: account.id, name: account.name, avatar: null, tag: null, title: account.title ?? null },
   };
   ws.isAlive = true;
   ws.on('pong', () => {
@@ -260,7 +238,7 @@ wss.on('connection', (ws) => {
     if (message.t === 'ping') return;
 
     if (message.t !== 'leave') {
-      ws.data.player = readPlayer(message);
+      ws.data.player = readPlayer(message, ws.data.account);
     }
 
     // menu handshake: claim the sign-in (and the title it earns) without seating a player
@@ -270,11 +248,19 @@ wss.on('connection', (ws) => {
     }
 
     if (message.t === 'create') {
+      if (!guard.noteRoom(ws.data.ip)) {
+        send(ws, { t: 'error', message: 'Too many tables from this connection' });
+        return;
+      }
       seatPlayer(ws, ws.data.player, 'create');
       return;
     }
 
     if (message.t === 'find') {
+      if (!guard.noteRoom(ws.data.ip)) {
+        send(ws, { t: 'error', message: 'Too many searches from this connection' });
+        return;
+      }
       if (ws.data.roomCode) leaveRoom(ws);
       dropFromQueue(ws);
       queue.push(ws);
@@ -386,6 +372,7 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     dropFromQueue(ws);
     leaveRoom(ws);
+    guard.dropSocket(ip);
   });
 });
 
