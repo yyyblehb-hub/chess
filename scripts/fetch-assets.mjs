@@ -11,16 +11,24 @@ const PIECES =
   'https://raw.githubusercontent.com/GiorgioMegrelli/chess.com-boards-and-pieces/v2.x/pieces/classic';
 const SET = ['wb', 'wk', 'wn', 'wp', 'wq', 'wr', 'bb', 'bk', 'bn', 'bp', 'bq', 'br'];
 
-// the fairy pieces, from Wikimedia Commons: transparent SVG, light and dark
-const FAIRY = 'https://commons.wikimedia.org/wiki/Special:FilePath';
-const FAIRY_SET = [['camel', 'c'], ['zebra', 'z'], ['alfil', 'a'], ['dabbaba', 'v'], ['giraffe', 'g']];
+// the fairy pieces: the Wikimedia Commons fairy set (transparent SVG, light and
+// dark) mirrored on catbox, so a build never waits on a wiki that rate-limits
+const MAGIC = [
+  ['camel-w', 'https://files.catbox.moe/el1qsk.svg'],
+  ['camel-b', 'https://files.catbox.moe/e5aphy.svg'],
+  ['zebra-w', 'https://files.catbox.moe/9zoza4.svg'],
+  ['zebra-b', 'https://files.catbox.moe/1epjxy.svg'],
+  ['alfil-w', 'https://files.catbox.moe/so6tlm.svg'],
+  ['alfil-b', 'https://files.catbox.moe/qivd2k.svg'],
+  ['dabbaba-w', 'https://files.catbox.moe/d469rn.svg'],
+  ['dabbaba-b', 'https://files.catbox.moe/wuoxg1.svg'],
+  ['giraffe-w', 'https://files.catbox.moe/s67bov.svg'],
+  ['giraffe-b', 'https://files.catbox.moe/9di4sm.svg'],
+];
 
 const files = [
   ...SET.map((piece) => [`src/assets/pieces/${piece}.png`, `${PIECES}/${piece}.png`]),
-  ...FAIRY_SET.flatMap(([name, letter]) => [
-    [`src/assets/magic/${name}-w.svg`, `${FAIRY}/Chess_${letter}lt45.svg`],
-    [`src/assets/magic/${name}-b.svg`, `${FAIRY}/Chess_${letter}dt45.svg`],
-  ]),
+  ...MAGIC.map(([name, url]) => [`src/assets/magic/${name}.svg`, url]),
   ['public/assets/chess.m4a', 'https://files.catbox.moe/0fcoov.m4a'],
   ['public/assets/simple-diversion.mp3', 'https://files.catbox.moe/e2k166.mp3'],
   ['public/assets/queen.mp3', 'https://files.catbox.moe/jojrjv.mp3'],
@@ -45,8 +53,8 @@ for (const [target, url] of files) {
       const size = (await stat(target)).size;
       if (size === 0) throw new Error('empty file');
       console.log(`${target} <- ${url} (${size} bytes)`);
-      // Commons throttles bursts, so the loop keeps a slow, polite rhythm
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      // keep a slow, polite rhythm so no host starts refusing the build
+      await new Promise((resolve) => setTimeout(resolve, 500));
       done = true;
     } catch (error) {
       if (existsSync(target)) await unlink(target);
