@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Board from './components/Board';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import GamePanel, { type ChatLine } from './components/GamePanel';
-import { gameResult, gameStatus, replay, type Color, type Move } from './lib/chess';
+import GameScreen from './components/GameScreen';
+import NameTag from './components/NameTag';
+import { type Move } from './lib/chess';
 import { useLobby, type Player, type Room, type ServerMessage } from './lib/lobby';
 import {
   clearProfile,
@@ -88,12 +89,6 @@ async function toggleFullscreen() {
   } catch {
     /* iOS Safari refuses on non-video elements — the layout already fills the screen */
   }
-}
-
-/* ---------- picture tag ---------- */
-
-function NameTag({ tag }: { tag?: string | null }) {
-  return tag ? <img className="tag" src={tag} alt="" /> : null;
 }
 
 /* ---------- player row ---------- */
@@ -330,153 +325,6 @@ function SearchScreen({ onCancel }: { onCancel: () => void }) {
       <button className="btn ghost push" onClick={onCancel}>
         Cancel
       </button>
-    </div>
-  );
-}
-
-/* ---------- game ---------- */
-
-function GameScreen({
-  room,
-  moves,
-  profile,
-  onMove,
-  onCopy,
-  onRematch,
-  onLeave,
-}: {
-  room: Room;
-  moves: Move[];
-  profile: Profile;
-  onMove: (move: Move) => void;
-  onCopy: () => void;
-  onRematch: () => void;
-  onLeave: () => void;
-}) {
-  const state = useMemo(() => replay(moves), [moves]);
-  const solo = room.solo === true;
-  const myIndex = room.players.findIndex((player) => player.id === profile.id);
-  const myColor: Color = myIndex === 1 ? 'b' : 'w';
-  const opponent = room.players.find((player) => player.id !== profile.id);
-  const status = gameStatus(state);
-  const result = gameResult(state, moves);
-  const side = state.turn === 'w' ? 'white' : 'black';
-  const over = result !== null;
-
-  // the draw names chess.com prints on the result card
-  const draw =
-    result === 'stalemate'
-      ? 'stalemate'
-      : result === 'insufficient'
-        ? 'insufficient material'
-        : result === 'repetition'
-          ? 'threefold repetition'
-          : null;
-
-  const label =
-    result === 'checkmate'
-      ? solo
-        ? `checkmate · ${state.turn === 'w' ? 'black' : 'white'} won`
-        : state.turn === myColor
-          ? 'checkmate · you lost'
-          : 'checkmate · you won'
-      : draw
-        ? `draw · ${draw}`
-        : status === 'check'
-          ? solo
-            ? `${side} in check`
-            : 'check'
-          : solo
-            ? `${side} to move`
-            : state.turn === myColor
-              ? 'your move'
-              : 'waiting';
-
-  // what chess.com puts in the middle of the board when the game is over
-  const winner = result === 'checkmate' ? (state.turn === 'w' ? 'black' : 'white') : null;
-  const alone = !solo && room.players.length < 2;
-  const mySide = myColor === 'w' ? 'white' : 'black';
-  const outcome = !winner
-    ? 'Draw'
-    : solo || alone
-      ? `${winner === 'white' ? 'White' : 'Black'} won`
-      : winner === mySide
-        ? 'You won'
-        : 'You lost';
-  const score = !winner ? '½-½' : winner === 'white' ? '1-0' : '0-1';
-  const canRematch = solo || room.players.length >= 2;
-
-  const opponentName = solo ? profile.name : (opponent?.name ?? 'opponent');
-  const myName = profile.name;
-  const myTag = room.players[myIndex]?.tag ?? profile.tag ?? null;
-  const opponentTag = solo ? myTag : (opponent?.tag ?? null);
-  const opponentAvatar = solo ? profile.avatar : (opponent?.avatar ?? null);
-  const opponentFace = opponentAvatar ? (
-    <img src={opponentAvatar} alt="" />
-  ) : (
-    solo ? 'B' : opponentName.slice(0, 1).toUpperCase()
-  );
-  const myFace = profile.avatar ? <img src={profile.avatar} alt="" /> : (solo ? 'W' : myName.slice(0, 1).toUpperCase());
-
-  return (
-    <div className="game">
-      <div className="pcard">
-        <div className="pfp mid">{opponentFace}</div>
-        <div className="meta">
-          <strong>
-            <NameTag tag={opponentTag} />
-            {opponentName}
-          </strong>
-          <span>{solo ? 'you · black' : 'opponent'}</span>
-        </div>
-        <button className="chip" onClick={onCopy} aria-label={`Table code ${room.code}, tap to copy`}>
-          {room.code}
-        </button>
-      </div>
-
-      <Board state={state} myColor={myColor} solo={solo} locked={over} onMove={onMove} />
-
-      <div className="pcard">
-        <div className="pfp mid">{myFace}</div>
-        <div className="meta">
-          <strong>
-            <NameTag tag={myTag} />
-            {myName}
-          </strong>
-          <span className={over ? 'over' : undefined}>{label}</span>
-        </div>
-      </div>
-
-      {over && (
-        <div className="gameover">
-          <div className="gameover-black" aria-hidden="true" />
-          <div className="result-card" role="dialog" aria-modal="true" aria-label="Game over">
-            <span className="result-kicker">
-              {result === 'checkmate'
-                ? 'Checkmate'
-                : result === 'stalemate'
-                  ? 'Stalemate'
-                  : result === 'repetition'
-                    ? 'Draw by repetition'
-                    : 'Insufficient material'}
-            </span>
-            <strong className="result-title">{outcome}</strong>
-            <span className="result-sub">
-              {winner ? `${winner === 'white' ? 'White' : 'Black'} won` : 'Draw'} · {score}
-            </span>
-            <div className="result-actions">
-              {canRematch && (
-                <button className="btn primary" onClick={onRematch}>
-                  Rematch
-                </button>
-              )}
-              <button className="btn ghost" onClick={onLeave}>
-                Find new match
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
