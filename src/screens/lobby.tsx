@@ -32,7 +32,6 @@ export function MenuScreen({
   onCreate,
   onJoin,
   onSettings,
-  onEdit,
   onResign,
 }: {
   profile: { name: string; avatar: string | null; tag?: string | null };
@@ -40,7 +39,6 @@ export function MenuScreen({
   onCreate: () => void;
   onJoin: () => void;
   onSettings: () => void;
-  onEdit: () => void;
   onResign: () => void;
 }) {
   return (
@@ -53,9 +51,6 @@ export function MenuScreen({
           <NameTag tag={profile.tag} />
           {profile.name}
         </span>
-        <button className="link" onClick={onEdit}>
-          Edit
-        </button>
       </div>
 
       <div className="actions">
