@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Board from './components/Board';
+import GamePanel, { type ChatLine } from './components/GamePanel';
 import { gameResult, gameStatus, replay, type Color, type Move } from './lib/chess';
 import { useLobby, type Player, type Room, type ServerMessage } from './lib/lobby';
 import {
@@ -53,6 +54,13 @@ const BackIcon = () => (
 const ChatIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M20 12.5a6.8 6.8 0 0 1-7.5 6.8 8.6 8.6 0 0 1-2.6-.6L5.5 20l.9-3.2A6.6 6.6 0 0 1 4.5 12.5 6.8 6.8 0 0 1 12 5.7a6.8 6.8 0 0 1 8 6.8Z" />
+  </svg>
+);
+
+const MovesIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M9 6.5h11M9 12h11M9 17.5h11" />
+    <path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" />
   </svg>
 );
 
@@ -441,6 +449,7 @@ function GameScreen({
 
       {over && (
         <div className="gameover">
+          <div className="gameover-black" aria-hidden="true" />
           <div className="result-card" role="dialog" aria-modal="true" aria-label="Game over">
             <span className="result-kicker">
               {result === 'checkmate'
@@ -462,7 +471,7 @@ function GameScreen({
                 </button>
               )}
               <button className="btn ghost" onClick={onLeave}>
-                New game
+                Find new match
               </button>
             </div>
           </div>
@@ -525,77 +534,6 @@ function RoomScreen({
           Leave
         </button>
       </div>
-    </div>
-  );
-}
-
-type ChatLine = { from: string; text: string };
-
-/* ---------- chat ---------- */
-
-function ChatPanel({
-  lines,
-  onSend,
-  onClose,
-}: {
-  lines: ChatLine[];
-  onSend: (text: string) => void;
-  onClose: () => void;
-}) {
-  const [text, setText] = useState('');
-  const logRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const log = logRef.current;
-    if (log) log.scrollTop = log.scrollHeight;
-  }, [lines.length]);
-
-  const submit = () => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    onSend(trimmed);
-    setText('');
-  };
-
-  return (
-    <div className="chat">
-      <div className="chat-head">
-        <span className="label">Chat</span>
-        <button type="button" className="link" onClick={onClose}>
-          Close
-        </button>
-      </div>
-      <div className="chat-log" ref={logRef}>
-        {lines.length === 0 ? (
-          <p className="muted">Say something...</p>
-        ) : (
-          lines.map((line, index) => (
-            <p key={index} className="chat-line">
-              <strong>{line.from}</strong>
-              {line.text}
-            </p>
-          ))
-        )}
-      </div>
-      <form
-        className="chat-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          submit();
-        }}
-      >
-        <input
-          className="field"
-          value={text}
-          maxLength={300}
-          placeholder="Message"
-          autoComplete="off"
-          onChange={(event) => setText(event.target.value)}
-        />
-        <button className="btn primary" type="submit" disabled={!text.trim()}>
-          Send
-        </button>
-      </form>
     </div>
   );
 }
@@ -708,7 +646,7 @@ export default function App() {
   const [joinBusy, setJoinBusy] = useState(false);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const [musicOn, setMusicOn] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [panel, setPanel] = useState<'chat' | 'moves' | null>(null);
   const [chat, setChat] = useState<ChatLine[]>([]);
   const [track, setTrack] = useState<TrackId>(loadTrack());
   const trackSrc = trackSource(track);
@@ -729,7 +667,7 @@ export default function App() {
           pendingMoves.current = [];
           if (roomRef.current?.code !== message.room.code) {
             setChat([]);
-            setChatOpen(false);
+            setPanel(null);
           }
           setRoom(message.room);
           setMoves(message.room.moves ?? []);
@@ -775,7 +713,7 @@ export default function App() {
         case 'left':
           setRoom(null);
           setMoves([]);
-          setChatOpen(false);
+          setPanel(null);
           break;
         default:
           break;
@@ -992,7 +930,7 @@ export default function App() {
     send({ t: 'leave' });
     setRoom(null);
     setJoinBusy(false);
-    setChatOpen(false);
+    setPanel(null);
     setChat([]);
     clearProfile();
     setProfile(null);
@@ -1004,13 +942,21 @@ export default function App() {
     setRoom(null);
     setMoves([]);
     setJoinBusy(false);
-    setChatOpen(false);
+    setPanel(null);
     setChat([]);
     setScreen('menu');
   };
 
   const sendChat = (text: string) => {
     send({ t: 'chat', text });
+  };
+
+  // chess.com's "Find new match": leave this table and queue for the next one
+  const newMatch = () => {
+    if (!profile) return;
+    leaveTable();
+    setScreen('search');
+    send({ t: 'find', id: profile.id, name: profile.name, avatar: profile.avatar, tag: profile.tag ?? null });
   };
 
   const startFind = () => {
@@ -1063,11 +1009,20 @@ export default function App() {
           <span className="grow" />
           {inGame && room?.solo !== true && (
             <button
-              className={`icon${chatOpen ? ' active' : ''}`}
-              aria-label={chatOpen ? 'Close chat' : 'Open chat'}
-              onClick={() => setChatOpen((open) => !open)}
+              className={`icon${panel === 'chat' ? ' active' : ''}`}
+              aria-label="Open chat"
+              onClick={() => setPanel('chat')}
             >
               <ChatIcon />
+            </button>
+          )}
+          {inGame && (
+            <button
+              className={`icon${panel === 'moves' ? ' active' : ''}`}
+              aria-label="Open move list"
+              onClick={() => setPanel('moves')}
+            >
+              <MovesIcon />
             </button>
           )}
           <button
@@ -1112,7 +1067,7 @@ export default function App() {
             onMove={queueMove}
             onCopy={() => void copyCode()}
             onRematch={() => send({ t: 'rematch' })}
-            onLeave={leaveTable}
+            onLeave={newMatch}
           />
         )}
 
@@ -1120,8 +1075,16 @@ export default function App() {
           <RoomScreen room={room} you={profile?.id ?? ''} onCopy={() => void copyCode()} onLeave={leaveTable} />
         )}
 
-        {inGame && chatOpen && room?.solo !== true && (
-          <ChatPanel lines={chat} onSend={sendChat} onClose={() => setChatOpen(false)} />
+        {inGame && room && panel && (
+          <GamePanel
+            view={panel === 'chat' && room.solo === true ? 'moves' : panel}
+            lines={chat}
+            moves={moves}
+            canChat={room.solo !== true}
+            onView={(next) => setPanel(next)}
+            onSend={sendChat}
+            onClose={() => setPanel(null)}
+          />
         )}
       </div>
 
