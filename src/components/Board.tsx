@@ -183,11 +183,13 @@ export default function Board({
       const piece = state.board[square];
       const dark = (row + column) % 2 === 1;
       const isTarget = targets.includes(square);
+      const magicPiece = magic?.get(square);
+      const magicTarget = (magicTargets ?? []).includes(square);
       const classes = ['sq', dark ? 'dark' : 'light'];
       if (state.last && (state.last.from === square || state.last.to === square)) classes.push('last');
       if (checkedKing === square) classes.push('check');
       if (targeting && piece) classes.push('arm');
-      if ((magicTargets ?? []).includes(square)) classes.push('magic-target');
+      if (magicTarget) classes.push('magic-target');
       if (magicPicked === square) classes.push('magic-picked');
 
       squares.push(
@@ -217,15 +219,18 @@ export default function Board({
               aria-hidden="true"
             />
           )}
-          {isTarget && <span className={piece ? 'target capture' : 'target'} aria-hidden="true" />}
+          {(isTarget || magicTarget) && (
+            <span className={piece || magicPiece ? 'target capture' : 'target'} aria-hidden="true" />
+          )}
           {hit === square && <span className="sniper-ink" aria-hidden="true" />}
-          {magic?.get(square) && (
-            <span
-              className={`magic-token ${magic.get(square)!.side}${magic.get(square)!.kind === 'flowey' ? ' flowey' : ''}`}
+          {magicPiece && (
+            <img
+              className={`magic-art ${magicPiece.side}${magicPiece.kind === 'flowey' ? ' flowey' : ''}`}
+              src={KINDS[magicPiece.kind].art[magicPiece.side]}
+              alt=""
+              draggable={false}
               aria-hidden="true"
-            >
-              {KINDS[magic.get(square)!.kind].glyph}
-            </span>
+            />
           )}
         </button>,
       );
