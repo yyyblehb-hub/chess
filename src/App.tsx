@@ -4,21 +4,23 @@ import GameScreen from './components/GameScreen';
 import TopBar from './components/TopBar';
 import { toggleFullscreen } from './components/chrome';
 import { JoinScreen, MenuScreen, RoomScreen, SearchScreen } from './screens/lobby';
-import { IdentityScreen, SettingsScreen } from './screens/setup';
+import { SettingsScreen } from './screens/setup';
+import AuthScreen from './screens/Auth';
+import { useSession } from './lib/auth';
 import { type Move } from './lib/chess';
 import { useLobby, type Room, type ServerMessage } from './lib/lobby';
 import { useMusic } from './lib/music';
 import { clearProfile, loadProfile, loadTrack, saveProfile, type Profile, type TrackId } from './lib/profile';
 import { playMoveSound } from './lib/sound';
 
-type Screen = 'identity' | 'menu' | 'settings' | 'join' | 'search' | 'room';
+type Screen = 'auth' | 'menu' | 'settings' | 'join' | 'search' | 'room';
 
 /* ---------- app ---------- */
 
 export default function App() {
-  const startingProfile = useRef<Profile | null>(loadProfile());
-  const [profile, setProfile] = useState<Profile | null>(startingProfile.current);
-  const [screen, setScreen] = useState<Screen>(startingProfile.current ? 'menu' : 'identity');
+  const { account, token, ready, adopt, forget } = useSession();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [screen, setScreen] = useState<Screen>('auth');
   const [room, setRoom] = useState<Room | null>(null);
   const [moves, setMoves] = useState<Move[]>([]);
   const [joinBusy, setJoinBusy] = useState(false);
@@ -120,7 +122,27 @@ export default function App() {
     [notify],
   );
 
-  const { connected, send } = useLobby(handleMessage);
+  const { connected, send } = useLobby(handleMessage, token, forget);
+
+  // a signed-in account is the identity: id, name and title all come from it
+  useEffect(() => {
+    if (!account) {
+      setProfile(null);
+      setScreen('auth');
+      return;
+    }
+    const saved = loadProfile();
+    const next: Profile = {
+      id: account.id,
+      name: account.name,
+      avatar: saved?.avatar ?? null,
+      tag: saved?.tag ?? null,
+      title: account.title,
+    };
+    setProfile(next);
+    saveProfile(next);
+    setScreen((current) => (current === 'auth' ? 'menu' : current));
+  }, [account]);
 
   // Tell the server who we are as soon as the socket is up. That sign-in is what
   // earns the titles, and the very first player ever gets GM.
@@ -175,12 +197,6 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const saveIdentity = (next: Profile) => {
-    setProfile(next);
-    saveProfile(next);
-    setScreen('menu');
-  };
-
   const saveTag = (next: Profile) => {
     setProfile(next);
     saveProfile(next);
@@ -200,7 +216,8 @@ export default function App() {
     setUnread(0);
     clearProfile();
     setProfile(null);
-    setScreen('identity');
+    setScreen('auth');
+    forget();
   };
 
   const leaveTable = () => {
@@ -256,7 +273,10 @@ export default function App() {
     }
   };
 
-  const canGoBack = screen !== 'identity' && screen !== 'menu';
+  const canGoBack = screen !== 'auth' && screen !== 'menu';
+
+  // a stored session is checked before the first screen paints
+  if (!ready) return null;
 
   return (
     <div className={`app${inGame ? ' in-game' : ''}`}>
@@ -280,7 +300,7 @@ export default function App() {
           onFullscreen={() => void toggleFullscreen()}
         />
 
-        {screen === 'identity' && <IdentityScreen initial={profile} onSubmit={saveIdentity} />}
+        {screen === 'auth' && <AuthScreen onAuthed={adopt} />}
 
         {screen === 'menu' && profile && (
           <MenuScreen
@@ -289,7 +309,7 @@ export default function App() {
             onCreate={startCreate}
             onJoin={() => setScreen('join')}
             onSettings={() => setScreen('settings')}
-            onEdit={() => setScreen('identity')}
+            onEdit={() => setScreen('settings')}
             onResign={resign}
           />
         )}
