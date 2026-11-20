@@ -171,8 +171,15 @@ function leaveRoom(ws, { notify = true } = {}) {
     return;
   }
 
-  room.moves = [];
-  room.state = initialState();
+  // a finished game keeps its final position: the player still at the table
+  // reads the result instead of watching the game disappear
+  const status = gameStatus(room.state);
+  const finished = status === 'checkmate' || status === 'stalemate';
+  if (!finished) {
+    room.moves = [];
+    room.state = initialState();
+  }
+
   pushRoom(room);
   if (notify) {
     for (const player of room.players) {
