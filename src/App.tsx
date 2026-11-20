@@ -103,8 +103,8 @@ export default function App() {
           break;
         case 'shoot':
           // the emptied square rides with the room, so a review shows it too;
-          // the round is heard by both players because both get this frame
-          playShotSound();
+          // the shooter already heard its own round on the trigger
+          if (message.by !== profileRef.current?.id) playShotSound();
           setRoom((current) => (current ? { ...current, shots: message.shots } : current));
           break;
         case 'aim':
