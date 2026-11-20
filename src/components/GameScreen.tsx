@@ -7,6 +7,32 @@ import NameTag from './NameTag';
 
 /* ---------- game ---------- */
 
+/** the medallion at the top of the result card: crown, flag, or a level score */
+function Crest({ verdict }: { verdict: string }) {
+  if (verdict === 'win') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3.5 8.6l4.3 3.2L12 5.2l4.2 6.6 4.3-3.2-1.7 9.1H5.2z" />
+        <path d="M5.2 20h13.6" />
+      </svg>
+    );
+  }
+  if (verdict === 'loss') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6.5 20.5V3.5" />
+        <path d="M6.5 4.6h10.8l-2.3 4 2.3 4H6.5z" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5.5 9.5h13" />
+      <path d="M5.5 14.5h13" />
+    </svg>
+  );
+}
+
 export default function GameScreen({
   room,
   moves,
@@ -73,6 +99,8 @@ export default function GameScreen({
         ? 'You won'
         : 'You lost';
   const score = !winner ? '½-½' : winner === 'white' ? '1-0' : '0-1';
+  // solo and abandoned tables have no "you", so they get the quiet treatment
+  const verdict = !winner ? 'draw' : solo || alone ? 'neutral' : winner === mySide ? 'win' : 'loss';
   const canRematch = solo || room.players.length >= 2;
 
   const opponentName = solo ? profile.name : (opponent?.name ?? 'opponent');
@@ -156,9 +184,13 @@ export default function GameScreen({
       </div>
 
       {over && (
-        <div className="gameover">
+        <div className={`gameover ${verdict}`}>
           <div className="gameover-black" aria-hidden="true" />
+          <div className="gameover-glow" aria-hidden="true" />
           <div className="result-card" role="dialog" aria-modal="true" aria-label="Game over">
+            <span className="result-crest">
+              <Crest verdict={verdict} />
+            </span>
             <span className="result-kicker">
               {result === 'checkmate'
                 ? 'Checkmate'
