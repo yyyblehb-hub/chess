@@ -53,6 +53,7 @@ export function sniperMessage(ws, message, rooms, send) {
   room.shots.push(square);
   room.shotAt = room.moves.length;
 
-  const payload = { t: 'shoot', square, shots: room.shots };
+  // the sender is named so the client that fired does not play the round twice
+  const payload = { t: 'shoot', square, shots: room.shots, by: ws.data.account.id };
   for (const player of room.players) send(player.ws, payload);
 }

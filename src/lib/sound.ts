@@ -37,25 +37,63 @@ function noise(ctx: AudioContext): AudioBuffer {
 
 /**
  * The sniper round, from myinstants. It is streamed from their CDN because the
- * file is far larger than the repository upload path can carry; both players
- * hear it, since both get the shot frame.
+ * file is far larger than the repository upload path can carry, and their host
+ * sends no CORS headers, so it is an audio element rather than a decoded
+ * buffer. The element is built and buffered up front and unlocked inside a tap:
+ * asking for it on the shot frame is what made the report land late.
  */
 const SHOT_URL = 'https://www.myinstants.com/media/sounds/sniper-shot.mp3';
+/** the clip opens with a little silence; start just past it */
+const SHOT_SKIP = 0.06;
 
 let shot: HTMLAudioElement | null = null;
+let unlocked = false;
+
+function shotAudio(): HTMLAudioElement {
+  if (shot) return shot;
+  shot = new Audio(SHOT_URL);
+  shot.preload = 'auto';
+  shot.volume = 0.75;
+  shot.load();
+  return shot;
+}
+
+/** buffers the round and unlocks playback while a gesture is still in hand */
+export function primeShot() {
+  const audio = shotAudio();
+  if (unlocked || audio.readyState >= 2) {
+    unlocked = true;
+    return;
+  }
+  audio.muted = true;
+  void audio
+    .play()
+    .then(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = false;
+      unlocked = true;
+    })
+    .catch(() => {
+      audio.muted = false;
+    });
+}
+
+// any first tap anywhere is enough to unlock it for the rest of the session
+if (typeof window !== 'undefined') {
+  window.addEventListener('pointerdown', primeShot, { once: true });
+}
 
 export function playShotSound() {
-  if (!shot) {
-    shot = new Audio(SHOT_URL);
-    shot.preload = 'auto';
-    shot.volume = 0.65;
-  }
+  const audio = shotAudio();
   try {
-    shot.currentTime = 0;
+    audio.currentTime = SHOT_SKIP;
   } catch {
-    /* not seekable yet; play() restarts it anyway */
+    /* not buffered yet; play() still starts it from the top */
   }
-  void shot.play().catch(() => undefined);
+  void audio.play().catch(() => {
+    /* blocked until the next tap; the gesture listener unlocks it */
+  });
 }
 
 export function playMoveSound(capture = false) {
