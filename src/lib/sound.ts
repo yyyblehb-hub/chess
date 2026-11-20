@@ -27,7 +27,7 @@ function noise(ctx: AudioContext): AudioBuffer {
   if (noiseBuffer) return noiseBuffer;
   const length = Math.floor(ctx.sampleRate * 0.05);
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
-  const data = ctx.getChannelData(0);
+  const data = buffer.getChannelData(0);
   for (let i = 0; i < length; i += 1) {
     data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 2;
   }
