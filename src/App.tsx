@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Board from './components/Board';
-import { gameStatus, replay, type Color, type Move } from './lib/chess';
+import { gameResult, gameStatus, replay, type Color, type Move } from './lib/chess';
 import { useLobby, type Player, type Room, type ServerMessage } from './lib/lobby';
 import {
   clearProfile,
@@ -351,31 +351,41 @@ function GameScreen({
   const myColor: Color = myIndex === 1 ? 'b' : 'w';
   const opponent = room.players.find((player) => player.id !== profile.id);
   const status = gameStatus(state);
+  const result = gameResult(state, moves);
   const side = state.turn === 'w' ? 'white' : 'black';
-  const over = status === 'checkmate' || status === 'stalemate';
+  const over = result !== null;
 
-  const label = solo
-    ? status === 'checkmate'
-      ? `checkmate · ${state.turn === 'w' ? 'black' : 'white'} won`
-      : status === 'stalemate'
-        ? 'stalemate · draw'
+  // the draw names chess.com prints on the result card
+  const draw =
+    result === 'stalemate'
+      ? 'stalemate'
+      : result === 'insufficient'
+        ? 'insufficient material'
+        : result === 'repetition'
+          ? 'threefold repetition'
+          : null;
+
+  const label =
+    result === 'checkmate'
+      ? solo
+        ? `checkmate · ${state.turn === 'w' ? 'black' : 'white'} won`
+        : state.turn === myColor
+          ? 'checkmate · you lost'
+          : 'checkmate · you won'
+      : draw
+        ? `draw · ${draw}`
         : status === 'check'
-          ? `${side} in check`
-          : `${side} to move`
-    : status === 'checkmate'
-      ? state.turn === myColor
-        ? 'checkmate · you lost'
-        : 'checkmate · you won'
-      : status === 'stalemate'
-        ? 'stalemate · draw'
-        : status === 'check'
-          ? 'check'
-          : state.turn === myColor
-            ? 'your move'
-            : 'waiting';
+          ? solo
+            ? `${side} in check`
+            : 'check'
+          : solo
+            ? `${side} to move`
+            : state.turn === myColor
+              ? 'your move'
+              : 'waiting';
 
   // what chess.com puts in the middle of the board when the game is over
-  const winner = status === 'checkmate' ? (state.turn === 'w' ? 'black' : 'white') : null;
+  const winner = result === 'checkmate' ? (state.turn === 'w' ? 'black' : 'white') : null;
   const alone = !solo && room.players.length < 2;
   const mySide = myColor === 'w' ? 'white' : 'black';
   const outcome = !winner
@@ -432,7 +442,15 @@ function GameScreen({
       {over && (
         <div className="gameover">
           <div className="result-card" role="dialog" aria-modal="true" aria-label="Game over">
-            <span className="result-kicker">{status === 'checkmate' ? 'Checkmate' : 'Stalemate'}</span>
+            <span className="result-kicker">
+              {result === 'checkmate'
+                ? 'Checkmate'
+                : result === 'stalemate'
+                  ? 'Stalemate'
+                  : result === 'repetition'
+                    ? 'Draw by repetition'
+                    : 'Insufficient material'}
+            </span>
             <strong className="result-title">{outcome}</strong>
             <span className="result-sub">
               {winner ? `${winner === 'white' ? 'White' : 'Black'} won` : 'Draw'} · {score}
