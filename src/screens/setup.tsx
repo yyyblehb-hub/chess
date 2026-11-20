@@ -9,11 +9,13 @@ export function SettingsScreen({
   track,
   onChange,
   onTrack,
+  onSignOut,
 }: {
   profile: Profile;
   track: TrackId;
   onChange: (next: Profile) => void;
   onTrack: (track: TrackId) => void;
+  onSignOut: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
@@ -149,6 +151,10 @@ export function SettingsScreen({
           </p>
         </div>
       )}
+
+      <button type="button" className="btn ghost push" onClick={onSignOut}>
+        Sign out
+      </button>
     </div>
   );
 }
