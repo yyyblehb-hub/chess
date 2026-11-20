@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Color, Move } from './chess';
 
-export type Player = { id: string; name: string; avatar: string | null; title?: string | null };
+export type Player = {
+  id: string;
+  name: string;
+  avatar: string | null;
+  tag?: string | null;
+  title?: string | null;
+};
 
 export type Room = {
   code: string;
@@ -19,6 +25,7 @@ export type ServerMessage =
   | { t: 'searching' }
   | { t: 'left' }
   | { t: 'title'; title: string | null }
+  | { t: 'chat'; from: string; text: string }
   | { t: 'notice'; message: string }
   | { t: 'error'; message: string };
 

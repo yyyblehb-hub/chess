@@ -1,7 +1,14 @@
 const PROFILE_KEY = 'chess.profile.v1';
 const ID_KEY = 'chess.id.v1';
 
-export type Profile = { id: string; name: string; avatar: string | null; title?: string | null };
+export type Profile = {
+  id: string;
+  name: string;
+  avatar: string | null;
+  /** emoji-size picture that rides along with the name */
+  tag?: string | null;
+  title?: string | null;
+};
 
 export function createId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -37,6 +44,7 @@ export function loadProfile(): Profile | null {
       id: parsed.id || loadId(),
       name: parsed.name.slice(0, 16),
       avatar: typeof parsed.avatar === 'string' ? parsed.avatar : null,
+      tag: typeof parsed.tag === 'string' ? parsed.tag : null,
       title: typeof parsed.title === 'string' ? parsed.title : null,
     };
   } catch {
@@ -60,10 +68,9 @@ export function saveProfile(profile: Profile) {
   }
 }
 
-/** Crops an uploaded picture to a small square avatar so it can travel over the socket. */
-export async function fileToAvatar(file: File): Promise<string> {
+/** Crops a picture to a square of the given size, keeping the middle of the shot. */
+async function squareImage(file: File, size: number, type: string, quality?: number): Promise<string> {
   const bitmap = await createImageBitmap(file);
-  const size = 160;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -76,5 +83,18 @@ export async function fileToAvatar(file: File): Promise<string> {
 
   context.drawImage(bitmap, (size - width) / 2, (size - height) / 2, width, height);
   bitmap.close?.();
-  return canvas.toDataURL('image/jpeg', 0.82);
+  return canvas.toDataURL(type, quality);
+}
+
+/** Crops an uploaded picture to a small square avatar so it can travel over the socket. */
+export function fileToAvatar(file: File): Promise<string> {
+  return squareImage(file, 160, 'image/jpeg', 0.82);
+}
+
+/**
+ * The tag is drawn at emoji size next to a name, so a tiny square is plenty and
+ * keeps the room snapshots light.
+ */
+export function fileToTag(file: File): Promise<string> {
+  return squareImage(file, 64, 'image/png');
 }
