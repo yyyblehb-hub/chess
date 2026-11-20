@@ -17,12 +17,15 @@ export type Room = {
   players: Player[];
   moves: Move[];
   turn: Color;
+  /** squares emptied by the admin sniper, laid over the move list */
+  shots?: number[];
   solo?: boolean;
 };
 
 export type ServerMessage =
   | { t: 'room'; room: Room }
   | { t: 'move'; move: Move; turn: Color }
+  | { t: 'shoot'; square: number; shots: number[] }
   | { t: 'searching' }
   | { t: 'left' }
   | { t: 'title'; title: string | null }
