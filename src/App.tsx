@@ -56,6 +56,30 @@ const ChatIcon = () => (
   </svg>
 );
 
+const PlayIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M8 5.5v13l11-6.5Z" />
+  </svg>
+);
+
+const PauseIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M7.5 5.5H11v13H7.5zM13 5.5h3.5v13H13z" />
+  </svg>
+);
+
+const PrevIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M7 6v12h2V6Zm10 0-8 6 8 6Z" />
+  </svg>
+);
+
+const NextIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M15 6v12h2V6ZM7 6l8 6-8 6Z" />
+  </svg>
+);
+
 /* ---------- fullscreen ---------- */
 
 type FullscreenDocument = Document & {
@@ -568,21 +592,40 @@ function trackSource(track: TrackId): string {
   return TRACKS.find((item) => item.id === track)?.src ?? TRACKS[0].src;
 }
 
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
+  const total = Math.floor(seconds);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
 /* ---------- settings ---------- */
 
 function SettingsScreen({
   profile,
   track,
+  playing,
+  progress,
   onChange,
-  onTrack,
+  onPrev,
+  onNext,
+  onTogglePlay,
+  onSeek,
 }: {
   profile: Profile;
   track: TrackId;
+  playing: boolean;
+  progress: { current: number; duration: number };
   onChange: (next: Profile) => void;
-  onTrack: (track: TrackId) => void;
+  onPrev: () => void;
+  onNext: () => void;
+  onTogglePlay: () => void;
+  onSeek: (seconds: number) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const trackIndex = Math.max(0, TRACKS.findIndex((item) => item.id === track));
+  const currentTrack = TRACKS[trackIndex];
 
   const pickTag = async (file: File | undefined) => {
     if (!file) return;
@@ -635,23 +678,49 @@ function SettingsScreen({
 
       <div className="setup-field">
         <span className="label">Music</span>
-        <div className="tracks">
-          {TRACKS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`track${track === item.id ? ' sel' : ''}`}
-              aria-pressed={track === item.id}
-              onClick={() => onTrack(item.id)}
-            >
-              <span className="track-name">{item.name}</span>
-              {item.by && <span className="track-by">{item.by}</span>}
-            </button>
-          ))}
+        <div className="player">
+          <div className="player-top">
+            <div className="cover" />
+            <div className="player-meta">
+              <span className="player-title">{currentTrack.name}</span>
+              <span className="player-by">
+                {currentTrack.by ?? 'menu music'} · {trackIndex + 1}/{TRACKS.length}
+              </span>
+            </div>
+            <div className="player-controls">
+              <button type="button" className="pbtn" onClick={onPrev} aria-label="Previous song">
+                <PrevIcon />
+              </button>
+              <button
+                type="button"
+                className="pbtn play"
+                onClick={onTogglePlay}
+                aria-label={playing ? 'Pause music' : 'Play music'}
+              >
+                {playing ? <PauseIcon /> : <PlayIcon />}
+              </button>
+              <button type="button" className="pbtn" onClick={onNext} aria-label="Next song">
+                <NextIcon />
+              </button>
+            </div>
+          </div>
+
+          <div className="player-bar">
+            <span className="time">{formatTime(progress.current)}</span>
+            <input
+              className="seek"
+              type="range"
+              min={0}
+              max={100}
+              step={0.1}
+              value={progress.duration ? (progress.current / progress.duration) * 100 : 0}
+              aria-label="Song position"
+              onChange={(event) => onSeek((Number(event.target.value) / 100) * progress.duration)}
+            />
+            <span className="time">{formatTime(progress.duration)}</span>
+          </div>
         </div>
       </div>
-
-      <p className="muted push">The picture sits next to your name at emoji size, in tables and games.</p>
     </div>
   );
 }
@@ -670,6 +739,7 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chat, setChat] = useState<ChatLine[]>([]);
   const [track, setTrack] = useState<TrackId>(loadTrack());
+  const [progress, setProgress] = useState({ current: 0, duration: 0 });
   const trackSrc = trackSource(track);
 
   const roomRef = useRef<Room | null>(null);
@@ -778,8 +848,32 @@ export default function App() {
     if (!audio) return;
     audio.src = trackSrc;
     audio.load();
+    setProgress({ current: 0, duration: 0 });
     if (wantMusicRef.current) void audio.play().catch(() => undefined);
   }, [trackSrc]);
+
+  // The player in settings draws the song's position, so the audio element's
+  // clock is mirrored into state while it plays.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onTime = () => setProgress((current) => ({ ...current, current: audio.currentTime || 0 }));
+    const onDuration = () =>
+      setProgress((current) => ({
+        ...current,
+        duration: Number.isFinite(audio.duration) ? audio.duration : 0,
+      }));
+
+    audio.addEventListener('timeupdate', onTime);
+    audio.addEventListener('loadedmetadata', onDuration);
+    audio.addEventListener('durationchange', onDuration);
+    return () => {
+      audio.removeEventListener('timeupdate', onTime);
+      audio.removeEventListener('loadedmetadata', onDuration);
+      audio.removeEventListener('durationchange', onDuration);
+    };
+  }, []);
 
   const startMusic = useCallback(() => {
     const audio = audioRef.current;
@@ -930,6 +1024,23 @@ export default function App() {
       .catch(() => undefined);
   };
 
+  const trackIndex = Math.max(
+    0,
+    TRACKS.findIndex((item) => item.id === track),
+  );
+
+  const stepTrack = (delta: number) => {
+    const next = TRACKS[(trackIndex + delta + TRACKS.length) % TRACKS.length];
+    pickTrack(next.id);
+  };
+
+  const seekTrack = (seconds: number) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
+    audio.currentTime = Math.max(0, Math.min(audio.duration, seconds));
+    setProgress((current) => ({ ...current, current: audio.currentTime }));
+  };
+
   const resign = () => {
     send({ t: 'leave' });
     setRoom(null);
@@ -1039,7 +1150,17 @@ export default function App() {
         )}
 
         {screen === 'settings' && profile && (
-          <SettingsScreen profile={profile} track={track} onChange={saveTag} onTrack={pickTrack} />
+          <SettingsScreen
+            profile={profile}
+            track={track}
+            playing={musicOn}
+            progress={progress}
+            onChange={saveTag}
+            onPrev={() => stepTrack(-1)}
+            onNext={() => stepTrack(1)}
+            onTogglePlay={toggleMusic}
+            onSeek={seekTrack}
+          />
         )}
 
         {screen === 'join' && <JoinScreen busy={joinBusy} onJoin={submitJoin} />}
