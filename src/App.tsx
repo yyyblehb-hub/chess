@@ -2,7 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Board from './components/Board';
 import { gameStatus, replay, type Color, type Move } from './lib/chess';
 import { useLobby, type Player, type Room, type ServerMessage } from './lib/lobby';
-import { clearProfile, fileToAvatar, fileToTag, loadId, loadProfile, saveProfile, type Profile } from './lib/profile';
+import {
+  clearProfile,
+  fileToAvatar,
+  fileToTag,
+  loadId,
+  loadProfile,
+  loadTheme,
+  saveProfile,
+  saveTheme,
+  type Profile,
+  type ThemeId,
+} from './lib/profile';
 import { playMoveSound } from './lib/sound';
 
 type Screen = 'identity' | 'menu' | 'settings' | 'join' | 'search' | 'room';
@@ -42,13 +53,6 @@ const BackIcon = () => (
 const ChatIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M20 12.5a6.8 6.8 0 0 1-7.5 6.8 8.6 8.6 0 0 1-2.6-.6L5.5 20l.9-3.2A6.6 6.6 0 0 1 4.5 12.5 6.8 6.8 0 0 1 12 5.7a6.8 6.8 0 0 1 8 6.8Z" />
-  </svg>
-);
-
-const SettingsIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <circle cx="12" cy="12" r="3.2" />
-    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H2.9a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.4-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1A1.7 1.7 0 0 0 10.1 3V2.9a2 2 0 1 1 4 0V3a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1Z" />
   </svg>
 );
 
@@ -210,6 +214,7 @@ function MenuScreen({
   onFind,
   onCreate,
   onJoin,
+  onSettings,
   onEdit,
   onResign,
 }: {
@@ -217,6 +222,7 @@ function MenuScreen({
   onFind: () => void;
   onCreate: () => void;
   onJoin: () => void;
+  onSettings: () => void;
   onEdit: () => void;
   onResign: () => void;
 }) {
@@ -245,6 +251,9 @@ function MenuScreen({
         <button className="btn" onClick={onJoin}>
           Join match
         </button>
+        <button className="btn" onClick={onSettings}>
+          Settings
+        </button>
       </div>
 
       <button className="dev-resign push" onClick={onResign}>
@@ -263,12 +272,10 @@ function JoinScreen({ busy, onJoin }: { busy: boolean; onJoin: (code: string) =>
   return (
     <div className="screen">
       <div className="setup-field">
-        <label className="label" htmlFor="join-code">
-          Code
-        </label>
         <input
           id="join-code"
           className="field code-input"
+          aria-label="Table code"
           value={code}
           maxLength={5}
           placeholder="CODE"
@@ -545,14 +552,27 @@ function ChatPanel({
   );
 }
 
+const THEMES: { id: ThemeId; label: string }[] = [
+  { id: 'wood', label: 'wood' },
+  { id: 'black', label: 'black' },
+  { id: 'gray', label: 'gray' },
+  { id: 'pink', label: 'pink' },
+  { id: 'blue', label: 'blue' },
+  { id: 'checker', label: 'board' },
+];
+
 /* ---------- settings ---------- */
 
 function SettingsScreen({
   profile,
+  theme,
   onChange,
+  onTheme,
 }: {
   profile: Profile;
+  theme: ThemeId;
   onChange: (next: Profile) => void;
+  onTheme: (theme: ThemeId) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -606,6 +626,25 @@ function SettingsScreen({
         </button>
       )}
 
+      <div className="setup-field">
+        <span className="label">Design</span>
+        <div className="themes">
+          {THEMES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`theme${theme === item.id ? ' sel' : ''}`}
+              aria-label={`${item.label} design`}
+              aria-pressed={theme === item.id}
+              onClick={() => onTheme(item.id)}
+            >
+              <span className={`swatch ${item.id}`} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <p className="muted push">The picture sits next to your name at emoji size, in tables and games.</p>
     </div>
   );
@@ -624,6 +663,7 @@ export default function App() {
   const [musicOn, setMusicOn] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chat, setChat] = useState<ChatLine[]>([]);
+  const [theme, setTheme] = useState<ThemeId>(loadTheme());
 
   const roomRef = useRef<Room | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -845,6 +885,11 @@ export default function App() {
     saveProfile(next);
   };
 
+  const pickTheme = (next: ThemeId) => {
+    setTheme(next);
+    saveTheme(next);
+  };
+
   const resign = () => {
     send({ t: 'leave' });
     setRoom(null);
@@ -903,7 +948,7 @@ export default function App() {
   const canGoBack = screen !== 'identity' && screen !== 'menu';
 
   return (
-    <div className={`app${inGame ? ' in-game' : ''}`}>
+    <div className={`app${theme === 'wood' ? '' : ` theme-${theme}`}${inGame ? ' in-game' : ''}`}>
       <div className="shell">
         <header className="bar">
           {canGoBack ? (
@@ -927,11 +972,6 @@ export default function App() {
               <ChatIcon />
             </button>
           )}
-          {screen === 'menu' && (
-            <button className="icon" aria-label="Settings" onClick={() => setScreen('settings')}>
-              <SettingsIcon />
-            </button>
-          )}
           <button
             className={`icon${musicOn ? ' active' : ''}`}
             aria-label={musicOn ? 'Pause music' : 'Play music'}
@@ -952,12 +992,15 @@ export default function App() {
             onFind={startFind}
             onCreate={startCreate}
             onJoin={() => setScreen('join')}
+            onSettings={() => setScreen('settings')}
             onEdit={() => setScreen('identity')}
             onResign={resign}
           />
         )}
 
-        {screen === 'settings' && profile && <SettingsScreen profile={profile} onChange={saveTag} />}
+        {screen === 'settings' && profile && (
+          <SettingsScreen profile={profile} theme={theme} onChange={saveTag} onTheme={pickTheme} />
+        )}
 
         {screen === 'join' && <JoinScreen busy={joinBusy} onJoin={submitJoin} />}
 
