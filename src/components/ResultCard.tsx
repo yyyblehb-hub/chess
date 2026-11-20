@@ -53,7 +53,9 @@ export default function ResultCard({
           <Crest verdict={verdict} />
         </span>
         <span className="result-kicker">
-          {result === 'checkmate'
+          {result === 'omega'
+            ? 'Super Omega King'
+            : result === 'checkmate'
             ? 'Checkmate'
             : result === 'stalemate'
               ? 'Stalemate'
