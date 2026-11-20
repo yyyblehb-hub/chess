@@ -9,10 +9,13 @@ import {
   loadId,
   loadProfile,
   loadTheme,
+  loadTrack,
   saveProfile,
   saveTheme,
+  saveTrack,
   type Profile,
   type ThemeId,
+  type TrackId,
 } from './lib/profile';
 import { playMoveSound } from './lib/sound';
 
@@ -561,18 +564,38 @@ const THEMES: { id: ThemeId; label: string }[] = [
   { id: 'checker', label: 'board' },
 ];
 
+const TRACKS: { id: TrackId; name: string; by?: string; src: string }[] = [
+  { id: 'beta', name: 'a simple beta song', src: '/assets/chess.m4a' },
+  { id: 'diversion', name: 'a simple diversion', src: '/assets/simple-diversion.mp3' },
+  { id: 'queen', name: 'queen', src: '/assets/queen.mp3' },
+  {
+    id: 'hopes',
+    name: 'field of hopes and dreams',
+    by: 'toby fox & Trevor Alan Gomes · Piano Collections: Volume 1',
+    src: '/assets/field-of-hopes.mp3',
+  },
+];
+
+function trackSource(track: TrackId): string {
+  return TRACKS.find((item) => item.id === track)?.src ?? TRACKS[0].src;
+}
+
 /* ---------- settings ---------- */
 
 function SettingsScreen({
   profile,
   theme,
+  track,
   onChange,
   onTheme,
+  onTrack,
 }: {
   profile: Profile;
   theme: ThemeId;
+  track: TrackId;
   onChange: (next: Profile) => void;
   onTheme: (theme: ThemeId) => void;
+  onTrack: (track: TrackId) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -590,7 +613,7 @@ function SettingsScreen({
   };
 
   return (
-    <div className="screen">
+    <div className="screen settings">
       <div className="setup">
         <button
           type="button"
@@ -645,6 +668,24 @@ function SettingsScreen({
         </div>
       </div>
 
+      <div className="setup-field">
+        <span className="label">Music</span>
+        <div className="tracks">
+          {TRACKS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`track${track === item.id ? ' sel' : ''}`}
+              aria-pressed={track === item.id}
+              onClick={() => onTrack(item.id)}
+            >
+              <span className="track-name">{item.name}</span>
+              {item.by && <span className="track-by">{item.by}</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <p className="muted push">The picture sits next to your name at emoji size, in tables and games.</p>
     </div>
   );
@@ -664,6 +705,8 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chat, setChat] = useState<ChatLine[]>([]);
   const [theme, setTheme] = useState<ThemeId>(loadTheme());
+  const [track, setTrack] = useState<TrackId>(loadTrack());
+  const trackSrc = trackSource(track);
 
   const roomRef = useRef<Room | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -764,6 +807,16 @@ export default function App() {
   // true only while the player wants music; used to undo browser interruptions
   const wantMusicRef = useRef(false);
 
+  // The chosen song is the one the audio element loads. Switching songs keeps
+  // the music going, and the first gesture starts it like before.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.src = trackSrc;
+    audio.load();
+    if (wantMusicRef.current) void audio.play().catch(() => undefined);
+  }, [trackSrc]);
+
   const startMusic = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -838,6 +891,18 @@ export default function App() {
     }
   }, [inGame, startMusic]);
 
+  // Music is meant to be on the whole time, so a blocked first attempt retries
+  // on the next tap instead of waiting for the speaker button.
+  useEffect(() => {
+    const resumeOnTap = () => {
+      const audio = audioRef.current;
+      if (!audio || inGame || !wantMusicRef.current || !audio.paused) return;
+      void audio.play().catch(() => undefined);
+    };
+    window.addEventListener('pointerdown', resumeOnTap);
+    return () => window.removeEventListener('pointerdown', resumeOnTap);
+  }, [inGame]);
+
   // The board artwork is the one image the board waits for: fetch it while the
   // player is still in the menu so the board paints from cache.
   useEffect(() => {
@@ -888,6 +953,22 @@ export default function App() {
   const pickTheme = (next: ThemeId) => {
     setTheme(next);
     saveTheme(next);
+  };
+
+  const pickTrack = (next: TrackId) => {
+    setTrack(next);
+    saveTrack(next);
+
+    // picking a song is a tap, so the browser will let this one play right away
+    const audio = audioRef.current;
+    if (!audio) return;
+    wantMusicRef.current = true;
+    audio.src = trackSource(next);
+    audio.load();
+    void audio
+      .play()
+      .then(() => setMusicOn(true))
+      .catch(() => undefined);
   };
 
   const resign = () => {
@@ -999,7 +1080,14 @@ export default function App() {
         )}
 
         {screen === 'settings' && profile && (
-          <SettingsScreen profile={profile} theme={theme} onChange={saveTag} onTheme={pickTheme} />
+          <SettingsScreen
+            profile={profile}
+            theme={theme}
+            track={track}
+            onChange={saveTag}
+            onTheme={pickTheme}
+            onTrack={pickTrack}
+          />
         )}
 
         {screen === 'join' && <JoinScreen busy={joinBusy} onJoin={submitJoin} />}
@@ -1026,7 +1114,7 @@ export default function App() {
         )}
       </div>
 
-      <audio ref={audioRef} src="/assets/chess.m4a" loop preload="auto" playsInline />
+      <audio ref={audioRef} loop preload="auto" playsInline />
 
       {toast && (
         <div key={toast.id} className="toast" role="status">
